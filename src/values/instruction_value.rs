@@ -1,14 +1,23 @@
-use either::{Either, Either::{Left, Right}};
-use llvm_sys::core::{LLVMGetInstructionOpcode, LLVMIsTailCall, LLVMGetPreviousInstruction, LLVMGetNextInstruction, LLVMGetInstructionParent, LLVMInstructionEraseFromParent, LLVMInstructionClone, LLVMSetVolatile, LLVMGetVolatile, LLVMGetNumOperands, LLVMGetOperand, LLVMGetOperandUse, LLVMSetOperand, LLVMValueAsBasicBlock, LLVMIsABasicBlock, LLVMGetICmpPredicate, LLVMGetFCmpPredicate};
+use either::{
+    Either,
+    Either::{Left, Right},
+};
 #[llvm_versions(3.9..=latest)]
 use llvm_sys::core::LLVMInstructionRemoveFromParent;
-use llvm_sys::LLVMOpcode;
+use llvm_sys::core::{
+    LLVMGetFCmpPredicate, LLVMGetICmpPredicate, LLVMGetInstructionOpcode, LLVMGetInstructionParent,
+    LLVMGetNextInstruction, LLVMGetNumOperands, LLVMGetOperand, LLVMGetOperandUse,
+    LLVMGetPreviousInstruction, LLVMGetVolatile, LLVMInstructionClone,
+    LLVMInstructionEraseFromParent, LLVMIsABasicBlock, LLVMIsTailCall, LLVMSetOperand,
+    LLVMSetVolatile, LLVMValueAsBasicBlock,
+};
 use llvm_sys::prelude::LLVMValueRef;
+use llvm_sys::LLVMOpcode;
 
 use crate::basic_block::BasicBlock;
 use crate::values::traits::AsValueRef;
 use crate::values::{BasicValue, BasicValueEnum, BasicValueUse, Value};
-use crate::{IntPredicate, FloatPredicate};
+use crate::{FloatPredicate, IntPredicate};
 
 // REVIEW: Split up into structs for SubTypes on InstructionValues?
 // REVIEW: This should maybe be split up into InstructionOpcode and ConstOpcode?
@@ -111,17 +120,13 @@ impl InstructionValue {
     }
 
     pub fn get_opcode(&self) -> InstructionOpcode {
-        let opcode = unsafe {
-            LLVMGetInstructionOpcode(self.as_value_ref())
-        };
+        let opcode = unsafe { LLVMGetInstructionOpcode(self.as_value_ref()) };
 
         InstructionOpcode::new(opcode)
     }
 
     pub fn get_previous_instruction(&self) -> Option<Self> {
-        let value = unsafe {
-            LLVMGetPreviousInstruction(self.as_value_ref())
-        };
+        let value = unsafe { LLVMGetPreviousInstruction(self.as_value_ref()) };
 
         if value.is_null() {
             return None;
@@ -131,9 +136,7 @@ impl InstructionValue {
     }
 
     pub fn get_next_instruction(&self) -> Option<Self> {
-        let value = unsafe {
-            LLVMGetNextInstruction(self.as_value_ref())
-        };
+        let value = unsafe { LLVMGetNextInstruction(self.as_value_ref()) };
 
         if value.is_null() {
             return None;
@@ -144,17 +147,13 @@ impl InstructionValue {
 
     // REVIEW: Potentially unsafe if parent BB or grandparent fn were removed?
     pub fn erase_from_basic_block(&self) {
-        unsafe {
-            LLVMInstructionEraseFromParent(self.as_value_ref())
-        }
+        unsafe { LLVMInstructionEraseFromParent(self.as_value_ref()) }
     }
 
     // REVIEW: Potentially unsafe if parent BB or grandparent fn were removed?
     #[llvm_versions(3.9..=latest)]
     pub fn remove_from_basic_block(&self) {
-        unsafe {
-            LLVMInstructionRemoveFromParent(self.as_value_ref())
-        }
+        unsafe { LLVMInstructionRemoveFromParent(self.as_value_ref()) }
     }
 
     // REVIEW: Potentially unsafe is parent BB or grandparent fn was deleted
@@ -163,9 +162,7 @@ impl InstructionValue {
     // was deleted... Invalid memory is more likely. Cloned IV will have no
     // parent?
     pub fn get_parent(&self) -> Option<BasicBlock> {
-        let value = unsafe {
-            LLVMGetInstructionParent(self.as_value_ref())
-        };
+        let value = unsafe { LLVMGetInstructionParent(self.as_value_ref()) };
 
         BasicBlock::new(value)
     }
@@ -173,29 +170,24 @@ impl InstructionValue {
     // REVIEW: See if necessary to check opcode == Call first.
     // Does it always return false otherwise?
     pub fn is_tail_call(&self) -> bool {
-        unsafe {
-            LLVMIsTailCall(self.as_value_ref()) == 1
-        }
+        unsafe { LLVMIsTailCall(self.as_value_ref()) == 1 }
     }
 
     pub fn replace_all_uses_with(&self, other: &InstructionValue) {
-        self.instruction_value.replace_all_uses_with(other.as_value_ref())
+        self.instruction_value
+            .replace_all_uses_with(other.as_value_ref())
     }
 
     // SubTypes: Only apply to memory access instructions
     /// Returns whether or not a memory access instruction is volatile.
     pub fn get_volatile(&self) -> bool {
-        unsafe {
-            LLVMGetVolatile(self.as_value_ref()) == 1
-        }
+        unsafe { LLVMGetVolatile(self.as_value_ref()) == 1 }
     }
 
     // SubTypes: Only apply to memory access instructions
     /// Sets whether or not a memory access instruction is volatile.
     pub fn set_volatile(&self, volatile: bool) {
-        unsafe {
-            LLVMSetVolatile(self.as_value_ref(), volatile as i32)
-        }
+        unsafe { LLVMSetVolatile(self.as_value_ref(), volatile as i32) }
     }
 
     /// Obtains the number of operands an `InstructionValue` has.
@@ -255,9 +247,7 @@ impl InstructionValue {
     /// 4) Void return has zero: void is not a value and does not count as an operand
     /// even though the return instruction can take values.
     pub fn get_num_operands(&self) -> u32 {
-        unsafe {
-            LLVMGetNumOperands(self.as_value_ref()) as u32
-        }
+        unsafe { LLVMGetNumOperands(self.as_value_ref()) as u32 }
     }
 
     /// Obtains the operand an `InstructionValue` has at a given index if any.
@@ -328,24 +318,20 @@ impl InstructionValue {
             return None;
         }
 
-        let operand = unsafe {
-            LLVMGetOperand(self.as_value_ref(), index)
-        };
+        let operand = unsafe { LLVMGetOperand(self.as_value_ref(), index) };
 
         if operand.is_null() {
             return None;
         }
 
-        let is_basic_block = unsafe {
-            !LLVMIsABasicBlock(operand).is_null()
-        };
+        let is_basic_block = unsafe { !LLVMIsABasicBlock(operand).is_null() };
 
         if is_basic_block {
-            let operand = unsafe {
-                LLVMValueAsBasicBlock(operand)
-            };
+            let operand = unsafe { LLVMValueAsBasicBlock(operand) };
 
-            Some(Right(BasicBlock::new(operand).expect("BasicBlock should be valid")))
+            Some(Right(
+                BasicBlock::new(operand).expect("BasicBlock should be valid"),
+            ))
         } else {
             Some(Left(BasicValueEnum::new(operand)))
         }
@@ -389,9 +375,7 @@ impl InstructionValue {
             return false;
         }
 
-        unsafe {
-            LLVMSetOperand(self.as_value_ref(), index, val.as_value_ref())
-        }
+        unsafe { LLVMSetOperand(self.as_value_ref(), index, val.as_value_ref()) }
 
         true
     }
@@ -431,9 +415,7 @@ impl InstructionValue {
             return None;
         }
 
-        let use_ = unsafe {
-            LLVMGetOperandUse(self.as_value_ref(), index)
-        };
+        let use_ = unsafe { LLVMGetOperandUse(self.as_value_ref(), index) };
 
         if use_.is_null() {
             return None;
@@ -487,9 +469,7 @@ impl InstructionValue {
         // what happens if we don't perform this check, and just call
         // LLVMGetICmpPredicate() regardless?
         if self.get_opcode() == InstructionOpcode::ICmp {
-            let pred = unsafe {
-                LLVMGetICmpPredicate(self.as_value_ref())
-            };
+            let pred = unsafe { LLVMGetICmpPredicate(self.as_value_ref()) };
             Some(IntPredicate::new(pred))
         } else {
             None
@@ -507,9 +487,7 @@ impl InstructionValue {
         // what happens if we don't perform this check, and just call
         // LLVMGetFCmpPredicate() regardless?
         if self.get_opcode() == InstructionOpcode::FCmp {
-            let pred = unsafe {
-                LLVMGetFCmpPredicate(self.as_value_ref())
-            };
+            let pred = unsafe { LLVMGetFCmpPredicate(self.as_value_ref()) };
             Some(FloatPredicate::new(pred))
         } else {
             None
@@ -521,9 +499,7 @@ impl Clone for InstructionValue {
     /// Creates a clone of this `InstructionValue`, and returns it.
     /// The clone will have no parent, and no name.
     fn clone(&self) -> Self {
-        let value = unsafe {
-            LLVMInstructionClone(self.as_value_ref())
-        };
+        let value = unsafe { LLVMInstructionClone(self.as_value_ref()) };
 
         InstructionValue::new(value)
     }

@@ -1,15 +1,18 @@
-use llvm_sys::LLVMTypeKind;
-use llvm_sys::core::{LLVMGetParamTypes, LLVMIsFunctionVarArg, LLVMCountParamTypes, LLVMGetReturnType, LLVMGetTypeKind};
+use llvm_sys::core::{
+    LLVMCountParamTypes, LLVMGetParamTypes, LLVMGetReturnType, LLVMGetTypeKind,
+    LLVMIsFunctionVarArg,
+};
 use llvm_sys::prelude::LLVMTypeRef;
+use llvm_sys::LLVMTypeKind;
 
 use std::fmt;
 use std::mem::forget;
 
-use crate::AddressSpace;
 use crate::context::ContextRef;
 use crate::support::LLVMString;
 use crate::types::traits::AsTypeRef;
-use crate::types::{PointerType, Type, BasicTypeEnum};
+use crate::types::{BasicTypeEnum, PointerType, Type};
+use crate::AddressSpace;
 
 /// A `FunctionType` is the type of a function variable.
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -22,7 +25,7 @@ impl FunctionType {
         assert!(!fn_type.is_null());
 
         FunctionType {
-            fn_type: Type::new(fn_type)
+            fn_type: Type::new(fn_type),
         }
     }
 
@@ -59,9 +62,7 @@ impl FunctionType {
     /// assert!(fn_type.is_var_arg());
     /// ```
     pub fn is_var_arg(&self) -> bool {
-        unsafe {
-            LLVMIsFunctionVarArg(self.as_type_ref()) != 0
-        }
+        unsafe { LLVMIsFunctionVarArg(self.as_type_ref()) != 0 }
     }
 
     /// Gets param types this `FunctionType` has.
@@ -109,9 +110,7 @@ impl FunctionType {
     /// assert_eq!(fn_type.count_param_types(), 1);
     /// ```
     pub fn count_param_types(&self) -> u32 {
-        unsafe {
-            LLVMCountParamTypes(self.as_type_ref())
-        }
+        unsafe { LLVMCountParamTypes(self.as_type_ref()) }
     }
 
     // REVIEW: Always false -> const fn?
@@ -181,13 +180,9 @@ impl FunctionType {
     /// assert_eq!(fn_type.get_return_type().unwrap().into_float_type(), f32_type);
     /// ```
     pub fn get_return_type(&self) -> Option<BasicTypeEnum> {
-        let ty = unsafe {
-            LLVMGetReturnType(self.as_type_ref())
-        };
+        let ty = unsafe { LLVMGetReturnType(self.as_type_ref()) };
 
-        let kind = unsafe {
-            LLVMGetTypeKind(ty)
-        };
+        let kind = unsafe { LLVMGetTypeKind(ty) };
 
         if let LLVMTypeKind::LLVMVoidTypeKind = kind {
             return None;

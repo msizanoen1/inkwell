@@ -1,9 +1,9 @@
 extern crate inkwell;
 
-use self::inkwell::{AddressSpace, OptimizationLevel};
-use self::inkwell::context::Context;
 use self::inkwell::builder::Builder;
+use self::inkwell::context::Context;
 use self::inkwell::values::BasicValue;
+use self::inkwell::{AddressSpace, OptimizationLevel};
 
 // use std::ffi::CString;
 use std::ptr::null;
@@ -154,17 +154,23 @@ fn test_null_checked_ptr_ops() {
 
     builder.build_return(Some(&index1));
 
-    let execution_engine = module.create_jit_execution_engine(OptimizationLevel::None).unwrap();
+    let execution_engine = module
+        .create_jit_execution_engine(OptimizationLevel::None)
+        .unwrap();
 
     unsafe {
-        let check_null_index1 = execution_engine.get_function::<unsafe extern "C" fn(*const i8) -> i8>("check_null_index1").unwrap();
+        let check_null_index1 = execution_engine
+            .get_function::<unsafe extern "C" fn(*const i8) -> i8>("check_null_index1")
+            .unwrap();
 
         let array = &[100i8, 42i8];
 
         assert_eq!(check_null_index1.call(null()), -1i8);
         assert_eq!(check_null_index1.call(array.as_ptr()), 42i8);
 
-        let check_null_index2 = execution_engine.get_function::<unsafe extern "C" fn(*const i8) -> i8>("check_null_index2").unwrap();
+        let check_null_index2 = execution_engine
+            .get_function::<unsafe extern "C" fn(*const i8) -> i8>("check_null_index2")
+            .unwrap();
 
         assert_eq!(check_null_index2.call(null()), -1i8);
         assert_eq!(check_null_index2.call(array.as_ptr()), 42i8);
@@ -176,7 +182,9 @@ fn test_binary_ops() {
     let context = Context::create();
     let module = context.create_module("unsafe");
     let builder = context.create_builder();
-    let execution_engine = module.create_jit_execution_engine(OptimizationLevel::None).unwrap();
+    let execution_engine = module
+        .create_jit_execution_engine(OptimizationLevel::None)
+        .unwrap();
 
     // Here we're going to create an and function which looks roughly like:
     // fn and(left: bool, right: bool) -> bool {
@@ -260,7 +268,9 @@ fn test_switch() {
     let context = Context::create();
     let module = context.create_module("unsafe");
     let builder = context.create_builder();
-    let execution_engine = module.create_jit_execution_engine(OptimizationLevel::None).unwrap();
+    let execution_engine = module
+        .create_jit_execution_engine(OptimizationLevel::None)
+        .unwrap();
 
     // Here we're going to create a function which looks roughly like:
     // fn switch(val: u8) -> u8 {
@@ -303,7 +313,9 @@ fn test_switch() {
     builder.build_return(Some(&double));
 
     unsafe {
-        let switch = execution_engine.get_function::<unsafe extern "C" fn(u8) -> u8>("switch").unwrap();
+        let switch = execution_engine
+            .get_function::<unsafe extern "C" fn(u8) -> u8>("switch")
+            .unwrap();
 
         assert_eq!(switch.call(0), 1);
         assert_eq!(switch.call(1), 2);
@@ -318,7 +330,9 @@ fn test_bit_shifts() {
     let context = Context::create();
     let module = context.create_module("unsafe");
     let builder = context.create_builder();
-    let execution_engine = module.create_jit_execution_engine(OptimizationLevel::None).unwrap();
+    let execution_engine = module
+        .create_jit_execution_engine(OptimizationLevel::None)
+        .unwrap();
 
     // Here we're going to create a function which looks roughly like:
     // fn left_shift(value: u8, bits: u8) -> u8 {
@@ -371,9 +385,15 @@ fn test_bit_shifts() {
     builder.build_return(Some(&shift));
 
     unsafe {
-        let left_shift = execution_engine.get_function::<unsafe extern "C" fn(u8, u8) -> u8>("left_shift").unwrap();
-        let right_shift  = execution_engine.get_function::<unsafe extern "C" fn(u8, u8) -> u8>("right_shift").unwrap();
-        let right_shift_sign_extend = execution_engine.get_function::<unsafe extern "C" fn(i8, u8) -> i8>("right_shift_sign_extend").unwrap();
+        let left_shift = execution_engine
+            .get_function::<unsafe extern "C" fn(u8, u8) -> u8>("left_shift")
+            .unwrap();
+        let right_shift = execution_engine
+            .get_function::<unsafe extern "C" fn(u8, u8) -> u8>("right_shift")
+            .unwrap();
+        let right_shift_sign_extend = execution_engine
+            .get_function::<unsafe extern "C" fn(i8, u8) -> i8>("right_shift_sign_extend")
+            .unwrap();
 
         assert_eq!(left_shift.call(0, 0), 0);
         assert_eq!(left_shift.call(0, 4), 0);
@@ -518,7 +538,8 @@ fn test_vector_convert_ops() {
     builder.position_at_end(&entry);
     let in_vec = fn_value.get_first_param().unwrap().into_vector_value();
     let casted_vec = builder.build_float_to_signed_int(in_vec, int32_vec_type, "casted_vec");
-    let _uncasted_vec = builder.build_signed_int_to_float(casted_vec, float32_vec_type, "uncasted_vec");
+    let _uncasted_vec =
+        builder.build_signed_int_to_float(casted_vec, float32_vec_type, "uncasted_vec");
     builder.build_return(Some(&casted_vec));
     assert!(fn_value.verify(true));
 }
@@ -532,7 +553,14 @@ fn test_vector_binary_ops() {
     let bool_vec_type = context.bool_type().vec_type(2);
 
     // Here we're building a function that takes in three <2 x i32>s and returns them added together as a <2 x i32>
-    let fn_type = int32_vec_type.fn_type(&[int32_vec_type.into(), int32_vec_type.into(), int32_vec_type.into()], false);
+    let fn_type = int32_vec_type.fn_type(
+        &[
+            int32_vec_type.into(),
+            int32_vec_type.into(),
+            int32_vec_type.into(),
+        ],
+        false,
+    );
     let fn_value = module.add_function("test_int_vec_add", fn_type, None);
     let entry = fn_value.append_basic_block("entry");
     let builder = context.create_builder();
@@ -548,7 +576,14 @@ fn test_vector_binary_ops() {
 
     // Here we're building a function that takes in three <2 x f32>s and returns x * y / z as an
     // <2 x f32>
-    let fn_type = float32_vec_type.fn_type(&[float32_vec_type.into(), float32_vec_type.into(), float32_vec_type.into()], false);
+    let fn_type = float32_vec_type.fn_type(
+        &[
+            float32_vec_type.into(),
+            float32_vec_type.into(),
+            float32_vec_type.into(),
+        ],
+        false,
+    );
     let fn_value = module.add_function("test_float_vec_mul", fn_type, None);
     let entry = fn_value.append_basic_block("entry");
     let builder = context.create_builder();
@@ -564,7 +599,14 @@ fn test_vector_binary_ops() {
 
     // Here we're building a function that takes two <2 x f32>s and a <2 x bool> and returns (x < y) * z
     // as a <2 x bool>
-    let fn_type = bool_vec_type.fn_type(&[float32_vec_type.into(), float32_vec_type.into(), bool_vec_type.into()], false);
+    let fn_type = bool_vec_type.fn_type(
+        &[
+            float32_vec_type.into(),
+            float32_vec_type.into(),
+            bool_vec_type.into(),
+        ],
+        false,
+    );
     let fn_value = module.add_function("test_float_vec_compare", fn_type, None);
     let entry = fn_value.append_basic_block("entry");
     let builder = context.create_builder();
@@ -573,7 +615,12 @@ fn test_vector_binary_ops() {
     let p1_vec = fn_value.get_first_param().unwrap().into_vector_value();
     let p2_vec = fn_value.get_nth_param(1).unwrap().into_vector_value();
     let p3_vec = fn_value.get_nth_param(2).unwrap().into_vector_value();
-    let compared_vec = builder.build_float_compare(self::inkwell::FloatPredicate::OLT, p1_vec, p2_vec, "compared_vec");
+    let compared_vec = builder.build_float_compare(
+        self::inkwell::FloatPredicate::OLT,
+        p1_vec,
+        p2_vec,
+        "compared_vec",
+    );
     let multiplied_vec = builder.build_int_mul(compared_vec, p3_vec, "multiplied_vec");
     builder.build_return(Some(&multiplied_vec));
     assert!(fn_value.verify(true));
@@ -584,7 +631,10 @@ fn test_vector_pointer_ops() {
     let context = Context::create();
     let module = context.create_module("test");
     let int32_vec_type = context.i32_type().vec_type(4);
-    let i8_ptr_vec_type = context.i8_type().ptr_type(AddressSpace::Generic).vec_type(4);
+    let i8_ptr_vec_type = context
+        .i8_type()
+        .ptr_type(AddressSpace::Generic)
+        .vec_type(4);
     let bool_vec_type = context.bool_type().vec_type(4);
 
     // Here we're building a function that takes a <4 x i32>, converts it to a <4 x i8*> and returns a
@@ -619,35 +669,81 @@ fn test_insert_value() {
     builder.position_at_end(&entry);
 
     let array_alloca = builder.build_alloca(array_type, "array_alloca");
-    let array = builder.build_load(array_alloca, "array_load").into_array_value();
+    let array = builder
+        .build_load(array_alloca, "array_load")
+        .into_array_value();
     let const_int1 = i32_type.const_int(2, false);
     let const_int2 = i32_type.const_int(5, false);
     let const_int3 = i32_type.const_int(6, false);
     let const_float = f32_type.const_float(3.14);
 
-    assert!(builder.build_insert_value(array, const_int1, 0, "insert").unwrap().is_array_value());
-    assert!(builder.build_insert_value(array, const_int2, 1, "insert").unwrap().is_array_value());
-    assert!(builder.build_insert_value(array, const_int3, 2, "insert").unwrap().is_array_value());
-    assert!(builder.build_insert_value(array, const_int3, 3, "insert").is_none());
-    assert!(builder.build_insert_value(array, const_int3, 4, "insert").is_none());
+    assert!(builder
+        .build_insert_value(array, const_int1, 0, "insert")
+        .unwrap()
+        .is_array_value());
+    assert!(builder
+        .build_insert_value(array, const_int2, 1, "insert")
+        .unwrap()
+        .is_array_value());
+    assert!(builder
+        .build_insert_value(array, const_int3, 2, "insert")
+        .unwrap()
+        .is_array_value());
+    assert!(builder
+        .build_insert_value(array, const_int3, 3, "insert")
+        .is_none());
+    assert!(builder
+        .build_insert_value(array, const_int3, 4, "insert")
+        .is_none());
 
-    assert!(builder.build_extract_value(array, 0, "extract").unwrap().is_int_value());
-    assert!(builder.build_extract_value(array, 1, "extract").unwrap().is_int_value());
-    assert!(builder.build_extract_value(array, 2, "extract").unwrap().is_int_value());
+    assert!(builder
+        .build_extract_value(array, 0, "extract")
+        .unwrap()
+        .is_int_value());
+    assert!(builder
+        .build_extract_value(array, 1, "extract")
+        .unwrap()
+        .is_int_value());
+    assert!(builder
+        .build_extract_value(array, 2, "extract")
+        .unwrap()
+        .is_int_value());
     assert!(builder.build_extract_value(array, 3, "extract").is_none());
 
     let struct_alloca = builder.build_alloca(struct_type, "struct_alloca");
-    let struct_value = builder.build_load(struct_alloca, "struct_load").into_struct_value();
+    let struct_value = builder
+        .build_load(struct_alloca, "struct_load")
+        .into_struct_value();
 
-    assert!(builder.build_insert_value(struct_value, const_int2, 0, "insert").unwrap().is_struct_value());
-    assert!(builder.build_insert_value(struct_value, const_float, 1, "insert").unwrap().is_struct_value());
-    assert!(builder.build_insert_value(struct_value, const_float, 2, "insert").is_none());
-    assert!(builder.build_insert_value(struct_value, const_float, 3, "insert").is_none());
+    assert!(builder
+        .build_insert_value(struct_value, const_int2, 0, "insert")
+        .unwrap()
+        .is_struct_value());
+    assert!(builder
+        .build_insert_value(struct_value, const_float, 1, "insert")
+        .unwrap()
+        .is_struct_value());
+    assert!(builder
+        .build_insert_value(struct_value, const_float, 2, "insert")
+        .is_none());
+    assert!(builder
+        .build_insert_value(struct_value, const_float, 3, "insert")
+        .is_none());
 
-    assert!(builder.build_extract_value(struct_value, 0, "extract").unwrap().is_int_value());
-    assert!(builder.build_extract_value(struct_value, 1, "extract").unwrap().is_float_value());
-    assert!(builder.build_extract_value(struct_value, 2, "extract").is_none());
-    assert!(builder.build_extract_value(struct_value, 3, "extract").is_none());
+    assert!(builder
+        .build_extract_value(struct_value, 0, "extract")
+        .unwrap()
+        .is_int_value());
+    assert!(builder
+        .build_extract_value(struct_value, 1, "extract")
+        .unwrap()
+        .is_float_value());
+    assert!(builder
+        .build_extract_value(struct_value, 2, "extract")
+        .is_none());
+    assert!(builder
+        .build_extract_value(struct_value, 3, "extract")
+        .is_none());
 
     builder.build_return(None);
 
@@ -693,7 +789,10 @@ fn test_bitcast() {
 
     builder.build_return(None);
 
-    assert!(module.verify().is_ok(), module.print_to_string().to_string());
+    assert!(
+        module.verify().is_ok(),
+        module.print_to_string().to_string()
+    );
 
     let first_iv = cast.as_instruction_value().unwrap();
 

@@ -5,11 +5,11 @@ use std::ffi::CStr;
 use crate::support::LLVMString;
 use crate::types::StructType;
 use crate::values::traits::AsValueRef;
-use crate::values::{InstructionValue, Value, MetadataValue};
+use crate::values::{InstructionValue, MetadataValue, Value};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct StructValue {
-    struct_value: Value
+    struct_value: Value,
 }
 
 impl StructValue {
@@ -66,7 +66,8 @@ impl StructValue {
     }
 
     pub fn replace_all_uses_with(&self, other: StructValue) {
-        self.struct_value.replace_all_uses_with(other.as_value_ref())
+        self.struct_value
+            .replace_all_uses_with(other.as_value_ref())
     }
 }
 

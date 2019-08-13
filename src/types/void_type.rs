@@ -4,7 +4,7 @@ use llvm_sys::prelude::LLVMTypeRef;
 use crate::context::ContextRef;
 use crate::support::LLVMString;
 use crate::types::traits::AsTypeRef;
-use crate::types::{Type, BasicTypeEnum, FunctionType};
+use crate::types::{BasicTypeEnum, FunctionType, Type};
 
 /// A `VoidType` is a special type with no possible direct instances. It's only
 /// useful as a function return type.
@@ -85,9 +85,7 @@ impl VoidType {
     /// assert_eq!(void_type.get_context(), Context::get_global());
     /// ```
     pub fn void_type() -> Self {
-        let void_type = unsafe {
-            LLVMVoidType()
-        };
+        let void_type = unsafe { LLVMVoidType() };
 
         VoidType::new(void_type)
     }

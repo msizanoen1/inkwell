@@ -1,11 +1,14 @@
-use llvm_sys::core::{LLVMConstGEP, LLVMConstInBoundsGEP, LLVMConstPtrToInt, LLVMConstPointerCast, LLVMConstAddrSpaceCast};
+use llvm_sys::core::{
+    LLVMConstAddrSpaceCast, LLVMConstGEP, LLVMConstInBoundsGEP, LLVMConstPointerCast,
+    LLVMConstPtrToInt,
+};
 use llvm_sys::prelude::LLVMValueRef;
 
 use std::ffi::CStr;
 
 use crate::support::LLVMString;
 use crate::types::{AsTypeRef, IntType, PointerType};
-use crate::values::{AsValueRef, InstructionValue, IntValue, Value, MetadataValue};
+use crate::values::{AsValueRef, InstructionValue, IntValue, MetadataValue, Value};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct PointerValue {
@@ -83,11 +86,16 @@ impl PointerValue {
     // REVIEW: Should this be on array value too?
     /// GEP is very likely to segfault if indexes are used incorrectly, and is therefore an unsafe function. Maybe we can change this in the future.
     pub unsafe fn const_gep(&self, ordered_indexes: &[IntValue]) -> PointerValue {
-        let mut index_values: Vec<LLVMValueRef> = ordered_indexes.iter()
-                                                                 .map(|val| val.as_value_ref())
-                                                                 .collect();
+        let mut index_values: Vec<LLVMValueRef> = ordered_indexes
+            .iter()
+            .map(|val| val.as_value_ref())
+            .collect();
         let value = {
-            LLVMConstGEP(self.as_value_ref(), index_values.as_mut_ptr(), index_values.len() as u32)
+            LLVMConstGEP(
+                self.as_value_ref(),
+                index_values.as_mut_ptr(),
+                index_values.len() as u32,
+            )
         };
 
         PointerValue::new(value)
@@ -95,36 +103,35 @@ impl PointerValue {
 
     /// GEP is very likely to segfault if indexes are used incorrectly, and is therefore an unsafe function. Maybe we can change this in the future.
     pub unsafe fn const_in_bounds_gep(&self, ordered_indexes: &[IntValue]) -> PointerValue {
-        let mut index_values: Vec<LLVMValueRef> = ordered_indexes.iter()
-                                                                 .map(|val| val.as_value_ref())
-                                                                 .collect();
+        let mut index_values: Vec<LLVMValueRef> = ordered_indexes
+            .iter()
+            .map(|val| val.as_value_ref())
+            .collect();
         let value = {
-            LLVMConstInBoundsGEP(self.as_value_ref(), index_values.as_mut_ptr(), index_values.len() as u32)
+            LLVMConstInBoundsGEP(
+                self.as_value_ref(),
+                index_values.as_mut_ptr(),
+                index_values.len() as u32,
+            )
         };
 
         PointerValue::new(value)
     }
 
     pub fn const_to_int(&self, int_type: IntType) -> IntValue {
-        let value = unsafe {
-            LLVMConstPtrToInt(self.as_value_ref(), int_type.as_type_ref())
-        };
+        let value = unsafe { LLVMConstPtrToInt(self.as_value_ref(), int_type.as_type_ref()) };
 
         IntValue::new(value)
     }
 
     pub fn const_cast(&self, ptr_type: PointerType) -> PointerValue {
-        let value = unsafe {
-            LLVMConstPointerCast(self.as_value_ref(), ptr_type.as_type_ref())
-        };
+        let value = unsafe { LLVMConstPointerCast(self.as_value_ref(), ptr_type.as_type_ref()) };
 
         PointerValue::new(value)
     }
 
     pub fn const_address_space_cast(&self, ptr_type: PointerType) -> PointerValue {
-        let value = unsafe {
-            LLVMConstAddrSpaceCast(self.as_value_ref(), ptr_type.as_type_ref())
-        };
+        let value = unsafe { LLVMConstAddrSpaceCast(self.as_value_ref(), ptr_type.as_type_ref()) };
 
         PointerValue::new(value)
     }

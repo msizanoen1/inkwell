@@ -6,8 +6,8 @@ use llvm_sys::core::{LLVMCreateMessage, LLVMDisposeMessage};
 use llvm_sys::support::LLVMLoadLibraryPermanently;
 
 use std::error::Error;
+use std::ffi::{CStr, CString};
 use std::fmt::{self, Debug, Display, Formatter};
-use std::ffi::{CString, CStr};
 use std::ops::Deref;
 
 /// An owned LLVM String. Also known as a LLVM Message
@@ -18,9 +18,7 @@ pub struct LLVMString {
 
 impl LLVMString {
     pub(crate) fn new(ptr: *const c_char) -> Self {
-        LLVMString {
-            ptr,
-        }
+        LLVMString { ptr }
     }
 
     /// This is a convenience method for creating a Rust `String`,
@@ -36,9 +34,7 @@ impl LLVMString {
     pub(crate) fn create(string: &str) -> LLVMString {
         debug_assert_eq!(string.as_bytes()[string.as_bytes().len() - 1], 0);
 
-        let ptr = unsafe {
-            LLVMCreateMessage(string.as_ptr() as *const _)
-        };
+        let ptr = unsafe { LLVMCreateMessage(string.as_ptr() as *const _) };
 
         LLVMString::new(ptr)
     }
@@ -48,9 +44,7 @@ impl Deref for LLVMString {
     type Target = CStr;
 
     fn deref(&self) -> &Self::Target {
-        unsafe {
-            CStr::from_ptr(self.ptr)
-        }
+        unsafe { CStr::from_ptr(self.ptr) }
     }
 }
 
@@ -74,7 +68,8 @@ impl PartialEq for LLVMString {
 
 impl Error for LLVMString {
     fn description(&self) -> &str {
-        self.to_str().expect("Could not convert LLVMString to str (likely invalid unicode)")
+        self.to_str()
+            .expect("Could not convert LLVMString to str (likely invalid unicode)")
     }
 
     fn cause(&self) -> Option<&dyn Error> {
@@ -104,9 +99,7 @@ impl LLVMStringOrRaw {
     pub fn as_str(&self) -> &CStr {
         match self {
             LLVMStringOrRaw::Owned(llvm_string) => llvm_string.deref(),
-            LLVMStringOrRaw::Borrowed(ptr) => unsafe {
-                CStr::from_ptr(*ptr)
-            },
+            LLVMStringOrRaw::Borrowed(ptr) => unsafe { CStr::from_ptr(*ptr) },
         }
     }
 }
@@ -128,9 +121,7 @@ pub unsafe fn shutdown_llvm() {
 pub fn load_library_permanently(filename: &str) -> bool {
     let filename = CString::new(filename).expect("Conversion to CString failed unexpectedly");
 
-    unsafe {
-        LLVMLoadLibraryPermanently(filename.as_ptr()) == 1
-    }
+    unsafe { LLVMLoadLibraryPermanently(filename.as_ptr()) == 1 }
 }
 
 /// Determines whether or not LLVM has been configured to run in multithreaded mode. (Inkwell currently does
@@ -138,9 +129,7 @@ pub fn load_library_permanently(filename: &str) -> bool {
 pub fn is_multithreaded() -> bool {
     use llvm_sys::core::LLVMIsMultithreaded;
 
-    unsafe {
-        LLVMIsMultithreaded() == 1
-    }
+    unsafe { LLVMIsMultithreaded() == 1 }
 }
 
 pub fn enable_llvm_pretty_stack_trace() {
@@ -149,9 +138,7 @@ pub fn enable_llvm_pretty_stack_trace() {
     #[llvm_versions(3.8..=latest)]
     use llvm_sys::error_handling::LLVMEnablePrettyStackTrace;
 
-    unsafe {
-        LLVMEnablePrettyStackTrace()
-    }
+    unsafe { LLVMEnablePrettyStackTrace() }
 }
 
 macro_rules! enum_rename {

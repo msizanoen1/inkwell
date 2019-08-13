@@ -1,5 +1,11 @@
 use libc::c_int;
-use llvm_sys::execution_engine::{LLVMGetExecutionEngineTargetData, LLVMExecutionEngineRef, LLVMRunFunction, LLVMRunFunctionAsMain, LLVMDisposeExecutionEngine, LLVMGetFunctionAddress, LLVMAddModule, LLVMFindFunction, LLVMLinkInMCJIT, LLVMLinkInInterpreter, LLVMRemoveModule, LLVMGenericValueRef, LLVMFreeMachineCodeForFunction, LLVMAddGlobalMapping, LLVMRunStaticConstructors, LLVMRunStaticDestructors};
+use llvm_sys::execution_engine::{
+    LLVMAddGlobalMapping, LLVMAddModule, LLVMDisposeExecutionEngine, LLVMExecutionEngineRef,
+    LLVMFindFunction, LLVMFreeMachineCodeForFunction, LLVMGenericValueRef,
+    LLVMGetExecutionEngineTargetData, LLVMGetFunctionAddress, LLVMLinkInInterpreter,
+    LLVMLinkInMCJIT, LLVMRemoveModule, LLVMRunFunction, LLVMRunFunctionAsMain,
+    LLVMRunStaticConstructors, LLVMRunStaticDestructors,
+};
 
 use crate::context::Context;
 use crate::module::Module;
@@ -8,11 +14,11 @@ use crate::targets::TargetData;
 use crate::values::{AnyValue, AsValueRef, FunctionValue, GenericValue};
 
 use std::error::Error;
-use std::rc::Rc;
-use std::ops::Deref;
 use std::ffi::CString;
 use std::fmt::{self, Debug, Display, Formatter};
-use std::mem::{forget, zeroed, transmute_copy, size_of};
+use std::mem::{forget, size_of, transmute_copy, zeroed};
+use std::ops::Deref;
+use std::rc::Rc;
 
 static EE_INNER_PANIC: &str = "ExecutionEngineInner should exist until Drop";
 
@@ -27,7 +33,9 @@ impl Error for FunctionLookupError {}
 impl FunctionLookupError {
     fn as_str(&self) -> &str {
         match self {
-            FunctionLookupError::JITNotEnabled => "ExecutionEngine does not have JIT functionality enabled",
+            FunctionLookupError::JITNotEnabled => {
+                "ExecutionEngine does not have JIT functionality enabled"
+            }
             FunctionLookupError::FunctionNotFound => "Function not found in ExecutionEngine",
         }
     }
@@ -62,8 +70,12 @@ impl RemoveModuleError {
     fn as_str(&self) -> &str {
         match self {
             RemoveModuleError::ModuleNotOwned => "Module is not owned by an Execution Engine",
-            RemoveModuleError::IncorrectModuleOwner => "Module is not owned by this Execution Engine",
-            RemoveModuleError::LLVMError(string) => string.to_str().unwrap_or("LLVMError with invalid unicode"),
+            RemoveModuleError::IncorrectModuleOwner => {
+                "Module is not owned by this Execution Engine"
+            }
+            RemoveModuleError::LLVMError(string) => {
+                string.to_str().unwrap_or("LLVMError with invalid unicode")
+            }
         }
     }
 }
@@ -101,9 +113,7 @@ impl ExecutionEngine {
         assert!(!execution_engine.is_null());
 
         // REVIEW: Will we have to do this for LLVMGetExecutionEngineTargetMachine too?
-        let target_data = unsafe {
-            LLVMGetExecutionEngineTargetData(*execution_engine)
-        };
+        let target_data = unsafe { LLVMGetExecutionEngineTargetData(*execution_engine) };
 
         ExecutionEngine {
             non_global_context,
@@ -125,9 +135,7 @@ impl ExecutionEngine {
     /// This function probably doesn't need to be called, but is here due to
     /// linking(?) requirements. Bad things happen if we don't provide it.
     pub fn link_in_mc_jit() {
-        unsafe {
-            LLVMLinkInMCJIT()
-        }
+        unsafe { LLVMLinkInMCJIT() }
     }
 
     /// This function probably doesn't need to be called, but is here due to
@@ -181,7 +189,11 @@ impl ExecutionEngine {
     /// ```
     pub fn add_global_mapping(&self, value: &dyn AnyValue, addr: usize) {
         unsafe {
-            LLVMAddGlobalMapping(self.execution_engine_inner(), value.as_value_ref(), addr as *mut _)
+            LLVMAddGlobalMapping(
+                self.execution_engine_inner(),
+                value.as_value_ref(),
+                addr as *mut _,
+            )
         }
     }
 
@@ -203,9 +215,7 @@ impl ExecutionEngine {
     /// assert!(ee.add_module(&module).is_err());
     /// ```
     pub fn add_module(&self, module: &Module) -> Result<(), ()> {
-        unsafe {
-            LLVMAddModule(self.execution_engine_inner(), module.module.get())
-        }
+        unsafe { LLVMAddModule(self.execution_engine_inner(), module.module.get()) }
 
         if module.owned_by_ee.borrow().is_some() {
             return Err(());
@@ -218,17 +228,23 @@ impl ExecutionEngine {
 
     pub fn remove_module(&self, module: &Module) -> Result<(), RemoveModuleError> {
         match *module.owned_by_ee.borrow() {
-            Some(ref ee) if ee.execution_engine_inner() != self.execution_engine_inner() =>
-                return Err(RemoveModuleError::IncorrectModuleOwner),
+            Some(ref ee) if ee.execution_engine_inner() != self.execution_engine_inner() => {
+                return Err(RemoveModuleError::IncorrectModuleOwner)
+            }
             None => return Err(RemoveModuleError::ModuleNotOwned),
-            _ => ()
+            _ => (),
         }
 
         let mut new_module = unsafe { zeroed() };
         let mut err_string = unsafe { zeroed() };
 
         let code = unsafe {
-            LLVMRemoveModule(self.execution_engine_inner(), module.module.get(), &mut new_module, &mut err_string)
+            LLVMRemoveModule(
+                self.execution_engine_inner(),
+                module.module.get(),
+                &mut new_module,
+                &mut err_string,
+            )
         };
 
         if code == 1 {
@@ -298,7 +314,10 @@ impl ExecutionEngine {
     /// method *may* invalidate the function pointer.
     ///
     /// [`UnsafeFunctionPointer`]: trait.UnsafeFunctionPointer.html
-    pub unsafe fn get_function<F>(&self, fn_name: &str) -> Result<JitFunction<F>, FunctionLookupError>
+    pub unsafe fn get_function<F>(
+        &self,
+        fn_name: &str,
+    ) -> Result<JitFunction<F>, FunctionLookupError>
     where
         F: UnsafeFunctionPointer,
     {
@@ -308,7 +327,12 @@ impl ExecutionEngine {
 
         // LLVMGetFunctionAddress segfaults in llvm 5.0 -> 8.0 when fn_name doesn't exist. This is a workaround
         // to see if it exists and avoid the segfault when it doesn't
-        #[cfg(any(feature = "llvm5-0", feature = "llvm6-0", feature = "llvm7-0", feature = "llvm8-0"))]
+        #[cfg(any(
+            feature = "llvm5-0",
+            feature = "llvm6-0",
+            feature = "llvm7-0",
+            feature = "llvm8-0"
+        ))]
         self.get_function_value(fn_name)?;
 
         let c_string = CString::new(fn_name).expect("Conversion to CString failed unexpectedly");
@@ -323,8 +347,11 @@ impl ExecutionEngine {
             return Err(FunctionLookupError::FunctionNotFound);
         }
 
-        assert_eq!(size_of::<F>(), size_of::<usize>(),
-            "The type `F` must have the same size as a function pointer");
+        assert_eq!(
+            size_of::<F>(),
+            size_of::<usize>(),
+            "The type `F` must have the same size as a function pointer"
+        );
 
         let execution_engine = self.execution_engine.as_ref().expect(EE_INNER_PANIC);
 
@@ -337,7 +364,9 @@ impl ExecutionEngine {
     // REVIEW: Not sure if an EE's target data can change.. if so we might want to update the value
     // when making this call
     pub fn get_target_data(&self) -> &TargetData {
-        self.target_data.as_ref().expect("TargetData should always exist until Drop")
+        self.target_data
+            .as_ref()
+            .expect("TargetData should always exist until Drop")
     }
 
     // REVIEW: Can also find nothing if no targeting is initialized. Maybe best to
@@ -352,11 +381,15 @@ impl ExecutionEngine {
         let mut function = unsafe { zeroed() };
 
         let code = unsafe {
-            LLVMFindFunction(self.execution_engine_inner(), c_string.as_ptr(), &mut function)
+            LLVMFindFunction(
+                self.execution_engine_inner(),
+                c_string.as_ptr(),
+                &mut function,
+            )
         };
 
         if code == 0 {
-            return FunctionValue::new(function).ok_or(FunctionLookupError::FunctionNotFound)
+            return FunctionValue::new(function).ok_or(FunctionLookupError::FunctionNotFound);
         };
 
         Err(FunctionLookupError::FunctionNotFound)
@@ -364,12 +397,19 @@ impl ExecutionEngine {
 
     // TODOC: Marked as unsafe because input function could very well do something unsafe. It's up to the caller
     // to ensure that doesn't happen by defining their function correctly.
-    pub unsafe fn run_function(&self, function: &FunctionValue, args: &[&GenericValue]) -> GenericValue {
-        let mut args: Vec<LLVMGenericValueRef> = args.iter()
-                                                     .map(|val| val.generic_value)
-                                                     .collect();
+    pub unsafe fn run_function(
+        &self,
+        function: &FunctionValue,
+        args: &[&GenericValue],
+    ) -> GenericValue {
+        let mut args: Vec<LLVMGenericValueRef> = args.iter().map(|val| val.generic_value).collect();
 
-        let value = LLVMRunFunction(self.execution_engine_inner(), function.as_value_ref(), args.len() as u32, args.as_mut_ptr()); // REVIEW: usize to u32 ok??
+        let value = LLVMRunFunction(
+            self.execution_engine_inner(),
+            function.as_value_ref(),
+            args.len() as u32,
+            args.as_mut_ptr(),
+        ); // REVIEW: usize to u32 ok??
 
         GenericValue::new(value)
     }
@@ -378,12 +418,21 @@ impl ExecutionEngine {
     // to ensure that doesn't happen by defining their function correctly.
     // SubType: Only for JIT EEs?
     pub unsafe fn run_function_as_main(&self, function: &FunctionValue, args: &[&str]) -> c_int {
-        let cstring_args: Vec<CString> = args.iter().map(|&arg| CString::new(arg).expect("Conversion to CString failed unexpectedly")).collect();
+        let cstring_args: Vec<CString> = args
+            .iter()
+            .map(|&arg| CString::new(arg).expect("Conversion to CString failed unexpectedly"))
+            .collect();
         let raw_args: Vec<*const _> = cstring_args.iter().map(|arg| arg.as_ptr()).collect();
 
         let environment_variables = vec![]; // TODO: Support envp. Likely needs to be null terminated
 
-        LLVMRunFunctionAsMain(self.execution_engine_inner(), function.as_value_ref(), raw_args.len() as u32, raw_args.as_ptr(), environment_variables.as_ptr()) // REVIEW: usize to u32 cast ok??
+        LLVMRunFunctionAsMain(
+            self.execution_engine_inner(),
+            function.as_value_ref(),
+            raw_args.len() as u32,
+            raw_args.as_ptr(),
+            environment_variables.as_ptr(),
+        ) // REVIEW: usize to u32 cast ok??
     }
 
     pub fn free_fn_machine_code(&self, function: &FunctionValue) {
@@ -394,16 +443,12 @@ impl ExecutionEngine {
 
     // REVIEW: Is this actually safe?
     pub fn run_static_constructors(&self) {
-        unsafe {
-            LLVMRunStaticConstructors(self.execution_engine_inner())
-        }
+        unsafe { LLVMRunStaticConstructors(self.execution_engine_inner()) }
     }
 
     // REVIEW: Is this actually safe? Can you double destruct/free?
     pub fn run_static_destructors(&self) {
-        unsafe {
-            LLVMRunStaticDestructors(self.execution_engine_inner())
-        }
+        unsafe { LLVMRunStaticDestructors(self.execution_engine_inner()) }
     }
 }
 
@@ -465,9 +510,7 @@ pub struct JitFunction<F> {
 
 impl<F> Debug for JitFunction<F> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        f.debug_tuple("JitFunction")
-            .field(&"<unnamed>")
-            .finish()
+        f.debug_tuple("JitFunction").field(&"<unnamed>").finish()
     }
 }
 

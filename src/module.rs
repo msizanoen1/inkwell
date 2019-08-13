@@ -1,33 +1,42 @@
 //! A `Module` represets a single code compilation unit.
 
-use llvm_sys::analysis::{LLVMVerifyModule, LLVMVerifierFailureAction};
+use llvm_sys::analysis::{LLVMVerifierFailureAction, LLVMVerifyModule};
 #[allow(deprecated)]
 use llvm_sys::bit_reader::{LLVMParseBitcode, LLVMParseBitcodeInContext};
 use llvm_sys::bit_writer::{LLVMWriteBitcodeToFile, LLVMWriteBitcodeToMemoryBuffer};
-use llvm_sys::core::{LLVMAddFunction, LLVMAddGlobal, LLVMDumpModule, LLVMGetNamedFunction, LLVMGetTypeByName, LLVMSetDataLayout, LLVMSetTarget, LLVMCloneModule, LLVMDisposeModule, LLVMGetTarget, LLVMModuleCreateWithName, LLVMGetModuleContext, LLVMGetFirstFunction, LLVMGetLastFunction, LLVMAddGlobalInAddressSpace, LLVMPrintModuleToString, LLVMGetNamedMetadataNumOperands, LLVMAddNamedMetadataOperand, LLVMGetNamedMetadataOperands, LLVMGetFirstGlobal, LLVMGetLastGlobal, LLVMGetNamedGlobal, LLVMPrintModuleToFile};
+use llvm_sys::core::{
+    LLVMAddFunction, LLVMAddGlobal, LLVMAddGlobalInAddressSpace, LLVMAddNamedMetadataOperand,
+    LLVMCloneModule, LLVMDisposeModule, LLVMDumpModule, LLVMGetFirstFunction, LLVMGetFirstGlobal,
+    LLVMGetLastFunction, LLVMGetLastGlobal, LLVMGetModuleContext, LLVMGetNamedFunction,
+    LLVMGetNamedGlobal, LLVMGetNamedMetadataNumOperands, LLVMGetNamedMetadataOperands,
+    LLVMGetTarget, LLVMGetTypeByName, LLVMModuleCreateWithName, LLVMPrintModuleToFile,
+    LLVMPrintModuleToString, LLVMSetDataLayout, LLVMSetTarget,
+};
+#[llvm_versions(7.0..=latest)]
+use llvm_sys::core::{LLVMAddModuleFlag, LLVMGetModuleFlag};
 #[llvm_versions(3.9..=latest)]
 use llvm_sys::core::{LLVMGetModuleIdentifier, LLVMSetModuleIdentifier};
-#[llvm_versions(7.0..=latest)]
-use llvm_sys::core::{LLVMGetModuleFlag, LLVMAddModuleFlag};
-use llvm_sys::execution_engine::{LLVMCreateInterpreterForModule, LLVMCreateJITCompilerForModule, LLVMCreateExecutionEngineForModule};
-use llvm_sys::prelude::{LLVMValueRef, LLVMModuleRef};
+use llvm_sys::execution_engine::{
+    LLVMCreateExecutionEngineForModule, LLVMCreateInterpreterForModule,
+    LLVMCreateJITCompilerForModule,
+};
+use llvm_sys::prelude::{LLVMModuleRef, LLVMValueRef};
 use llvm_sys::LLVMLinkage;
 #[llvm_versions(7.0..=latest)]
 use llvm_sys::LLVMModuleFlagBehavior;
 
-use std::cell::{Cell, RefCell, Ref};
+use std::cell::{Cell, Ref, RefCell};
 #[llvm_versions(3.9..=latest)]
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::fs::File;
 use std::mem::{forget, zeroed};
+use std::os::raw::c_char;
 use std::path::Path;
 use std::ptr;
 use std::rc::Rc;
 use std::slice::from_raw_parts;
-use std::os::raw::c_char;
 
-use crate::{AddressSpace, OptimizationLevel};
 #[llvm_versions(7.0..=latest)]
 use crate::comdat::Comdat;
 use crate::context::{Context, ContextRef};
@@ -35,13 +44,14 @@ use crate::data_layout::DataLayout;
 use crate::execution_engine::ExecutionEngine;
 use crate::memory_buffer::MemoryBuffer;
 use crate::support::LLVMString;
-use crate::targets::{Target, InitializationConfig};
-use crate::types::{AsTypeRef, BasicType, FunctionType, BasicTypeEnum};
-use crate::values::{AsValueRef, FunctionValue, GlobalValue, MetadataValue};
+use crate::targets::{InitializationConfig, Target};
+use crate::types::{AsTypeRef, BasicType, BasicTypeEnum, FunctionType};
 #[llvm_versions(7.0..=latest)]
 use crate::values::BasicValue;
+use crate::values::{AsValueRef, FunctionValue, GlobalValue, MetadataValue};
+use crate::{AddressSpace, OptimizationLevel};
 
-enum_rename!{
+enum_rename! {
     /// This enum defines how to link a global variable or function in a module. The variant documenation is
     /// mostly taken straight from LLVM's own documentation except for some minor clarification.
     ///
@@ -168,9 +178,7 @@ impl Module {
     pub fn create(name: &str) -> Self {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
-        let module = unsafe {
-            LLVMModuleCreateWithName(c_string.as_ptr())
-        };
+        let module = unsafe { LLVMModuleCreateWithName(c_string.as_ptr()) };
 
         Module::new(module, None)
     }
@@ -195,14 +203,19 @@ impl Module {
     /// assert_eq!(fn_val.get_name().to_str(), Ok("my_function"));
     /// assert_eq!(fn_val.get_linkage(), Linkage::External);
     /// ```
-    pub fn add_function(&self, name: &str, ty: FunctionType, linkage: Option<Linkage>) -> FunctionValue {
+    pub fn add_function(
+        &self,
+        name: &str,
+        ty: FunctionType,
+        linkage: Option<Linkage>,
+    ) -> FunctionValue {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
-        let value = unsafe {
-            LLVMAddFunction(self.module.get(), c_string.as_ptr(), ty.as_type_ref())
-        };
+        let value =
+            unsafe { LLVMAddFunction(self.module.get(), c_string.as_ptr(), ty.as_type_ref()) };
 
-        let fn_value = FunctionValue::new(value).expect("add_function should always succeed in adding a new function");
+        let fn_value = FunctionValue::new(value)
+            .expect("add_function should always succeed in adding a new function");
 
         if let Some(linkage) = linkage {
             fn_value.set_linkage(linkage)
@@ -230,9 +243,7 @@ impl Module {
     /// assert_ne!(local_context, *global_context);
     /// ```
     pub fn get_context(&self) -> ContextRef {
-        let context = unsafe {
-            LLVMGetModuleContext(self.module.get())
-        };
+        let context = unsafe { LLVMGetModuleContext(self.module.get()) };
 
         // REVIEW: This probably should be somehow using the existing context Rc
         ContextRef::new(Context::new(Rc::new(context)))
@@ -257,9 +268,7 @@ impl Module {
     /// assert_eq!(fn_value, module.get_first_function().unwrap());
     /// ```
     pub fn get_first_function(&self) -> Option<FunctionValue> {
-        let function = unsafe {
-            LLVMGetFirstFunction(self.module.get())
-        };
+        let function = unsafe { LLVMGetFirstFunction(self.module.get()) };
 
         FunctionValue::new(function)
     }
@@ -283,9 +292,7 @@ impl Module {
     /// assert_eq!(fn_value, module.get_last_function().unwrap());
     /// ```
     pub fn get_last_function(&self) -> Option<FunctionValue> {
-        let function = unsafe {
-            LLVMGetLastFunction(self.module.get())
-        };
+        let function = unsafe { LLVMGetLastFunction(self.module.get()) };
 
         FunctionValue::new(function)
     }
@@ -311,13 +318,10 @@ impl Module {
     pub fn get_function(&self, name: &str) -> Option<FunctionValue> {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
-        let value = unsafe {
-            LLVMGetNamedFunction(self.module.get(), c_string.as_ptr())
-        };
+        let value = unsafe { LLVMGetNamedFunction(self.module.get(), c_string.as_ptr()) };
 
         FunctionValue::new(value)
     }
-
 
     /// Gets a `BasicTypeEnum` of a named type in a `Module`.
     ///
@@ -338,9 +342,7 @@ impl Module {
     pub fn get_type(&self, name: &str) -> Option<BasicTypeEnum> {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
-        let type_ = unsafe {
-            LLVMGetTypeByName(self.module.get(), c_string.as_ptr())
-        };
+        let type_ = unsafe { LLVMGetTypeByName(self.module.get(), c_string.as_ptr()) };
 
         if type_.is_null() {
             return None;
@@ -370,9 +372,7 @@ impl Module {
     /// assert_eq!(module.get_target().unwrap(), target);
     /// ```
     pub fn set_target(&self, target: &Target) {
-        unsafe {
-            LLVMSetTarget(self.module.get(), target.get_name().as_ptr())
-        }
+        unsafe { LLVMSetTarget(self.module.get(), target.get_name().as_ptr()) }
     }
 
     /// Gets the `Target` assigned to this `Module`, if any.
@@ -397,9 +397,7 @@ impl Module {
     /// ```
     pub fn get_target(&self) -> Option<Target> {
         // REVIEW: This isn't an owned LLVMString, is it? If so, need to deallocate.
-        let target_str = unsafe {
-            LLVMGetTarget(self.module.get())
-        };
+        let target_str = unsafe { LLVMGetTarget(self.module.get()) };
 
         Target::from_name_raw(target_str)
     }
@@ -422,12 +420,11 @@ impl Module {
     /// ```
     // SubType: ExecutionEngine<Basic?>
     pub fn create_execution_engine(&self) -> Result<ExecutionEngine, LLVMString> {
-        Target::initialize_native(&InitializationConfig::default())
-            .map_err(|mut err_string| {
-                err_string.push('\0');
+        Target::initialize_native(&InitializationConfig::default()).map_err(|mut err_string| {
+            err_string.push('\0');
 
-                LLVMString::create(&err_string)
-            })?;
+            LLVMString::create(&err_string)
+        })?;
 
         if self.owned_by_ee.borrow().is_some() {
             let string = "This module is already owned by an ExecutionEngine.\0";
@@ -437,7 +434,11 @@ impl Module {
         let mut execution_engine = unsafe { zeroed() };
         let mut err_string = unsafe { zeroed() };
         let code = unsafe {
-            LLVMCreateExecutionEngineForModule(&mut execution_engine, self.module.get(), &mut err_string) // Takes ownership of module
+            LLVMCreateExecutionEngineForModule(
+                &mut execution_engine,
+                self.module.get(),
+                &mut err_string,
+            ) // Takes ownership of module
         };
 
         if code == 1 {
@@ -470,12 +471,11 @@ impl Module {
     /// ```
     // SubType: ExecutionEngine<Interpreter>
     pub fn create_interpreter_execution_engine(&self) -> Result<ExecutionEngine, LLVMString> {
-        Target::initialize_native(&InitializationConfig::default())
-            .map_err(|mut err_string| {
-                err_string.push('\0');
+        Target::initialize_native(&InitializationConfig::default()).map_err(|mut err_string| {
+            err_string.push('\0');
 
-                LLVMString::create(&err_string)
-            })?;
+            LLVMString::create(&err_string)
+        })?;
 
         if self.owned_by_ee.borrow().is_some() {
             let string = "This module is already owned by an ExecutionEngine.\0";
@@ -486,7 +486,11 @@ impl Module {
         let mut err_string = unsafe { zeroed() };
 
         let code = unsafe {
-            LLVMCreateInterpreterForModule(&mut execution_engine, self.module.get(), &mut err_string) // Takes ownership of module
+            LLVMCreateInterpreterForModule(
+                &mut execution_engine,
+                self.module.get(),
+                &mut err_string,
+            ) // Takes ownership of module
         };
 
         if code == 1 {
@@ -519,13 +523,15 @@ impl Module {
     /// assert_eq!(module.get_context(), context);
     /// ```
     // SubType: ExecutionEngine<Jit>
-    pub fn create_jit_execution_engine(&self, opt_level: OptimizationLevel) -> Result<ExecutionEngine, LLVMString> {
-        Target::initialize_native(&InitializationConfig::default())
-            .map_err(|mut err_string| {
-                err_string.push('\0');
+    pub fn create_jit_execution_engine(
+        &self,
+        opt_level: OptimizationLevel,
+    ) -> Result<ExecutionEngine, LLVMString> {
+        Target::initialize_native(&InitializationConfig::default()).map_err(|mut err_string| {
+            err_string.push('\0');
 
-                LLVMString::create(&err_string)
-            })?;
+            LLVMString::create(&err_string)
+        })?;
 
         if self.owned_by_ee.borrow().is_some() {
             let string = "This module is already owned by an ExecutionEngine.\0";
@@ -536,7 +542,12 @@ impl Module {
         let mut err_string = unsafe { zeroed() };
 
         let code = unsafe {
-            LLVMCreateJITCompilerForModule(&mut execution_engine, self.module.get(), opt_level as u32, &mut err_string) // Takes ownership of module
+            LLVMCreateJITCompilerForModule(
+                &mut execution_engine,
+                self.module.get(),
+                opt_level as u32,
+                &mut err_string,
+            ) // Takes ownership of module
         };
 
         if code == 1 {
@@ -567,12 +578,22 @@ impl Module {
     /// assert_eq!(module.get_first_global().unwrap(), global);
     /// assert_eq!(module.get_last_global().unwrap(), global);
     /// ```
-    pub fn add_global<T: BasicType>(&self, type_: T, address_space: Option<AddressSpace>, name: &str) -> GlobalValue {
+    pub fn add_global<T: BasicType>(
+        &self,
+        type_: T,
+        address_space: Option<AddressSpace>,
+        name: &str,
+    ) -> GlobalValue {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
         let value = unsafe {
             match address_space {
-                Some(address_space) => LLVMAddGlobalInAddressSpace(self.module.get(), type_.as_type_ref(), c_string.as_ptr(), address_space as u32),
+                Some(address_space) => LLVMAddGlobalInAddressSpace(
+                    self.module.get(),
+                    type_.as_type_ref(),
+                    c_string.as_ptr(),
+                    address_space as u32,
+                ),
                 None => LLVMAddGlobal(self.module.get(), type_.as_type_ref(), c_string.as_ptr()),
             }
         };
@@ -600,12 +621,12 @@ impl Module {
     /// module.write_bitcode_to_path(&path);
     /// ```
     pub fn write_bitcode_to_path(&self, path: &Path) -> bool {
-        let path_str = path.to_str().expect("Did not find a valid Unicode path string");
+        let path_str = path
+            .to_str()
+            .expect("Did not find a valid Unicode path string");
         let c_string = CString::new(path_str).expect("Conversion to CString failed unexpectedly");
 
-        unsafe {
-            LLVMWriteBitcodeToFile(self.module.get(), c_string.as_ptr()) == 0
-        }
+        unsafe { LLVMWriteBitcodeToFile(self.module.get(), c_string.as_ptr()) == 0 }
     }
 
     // See GH issue #6
@@ -613,13 +634,18 @@ impl Module {
     pub fn write_bitcode_to_file(&self, file: &File, should_close: bool, unbuffered: bool) -> bool {
         #[cfg(unix)]
         {
-            use std::os::unix::io::AsRawFd;
             use llvm_sys::bit_writer::LLVMWriteBitcodeToFD;
+            use std::os::unix::io::AsRawFd;
 
             // REVIEW: as_raw_fd docs suggest it only works in *nix
             // Also, should_close should maybe be hardcoded to true?
             unsafe {
-                LLVMWriteBitcodeToFD(self.module.get(), file.as_raw_fd(), should_close as i32, unbuffered as i32) == 0
+                LLVMWriteBitcodeToFD(
+                    self.module.get(),
+                    file.as_raw_fd(),
+                    should_close as i32,
+                    unbuffered as i32,
+                ) == 0
             }
         }
         #[cfg(windows)]
@@ -647,9 +673,7 @@ impl Module {
     /// let buffer = module.write_bitcode_to_memory();
     /// ```
     pub fn write_bitcode_to_memory(&self) -> MemoryBuffer {
-        let memory_buffer = unsafe {
-            LLVMWriteBitcodeToMemoryBuffer(self.module.get())
-        };
+        let memory_buffer = unsafe { LLVMWriteBitcodeToMemoryBuffer(self.module.get()) };
 
         MemoryBuffer::new(memory_buffer)
     }
@@ -664,9 +688,7 @@ impl Module {
 
         let action = LLVMVerifierFailureAction::LLVMReturnStatusAction;
 
-        let code = unsafe {
-            LLVMVerifyModule(self.module.get(), action, &mut err_str)
-        };
+        let code = unsafe { LLVMVerifyModule(self.module.get(), action, &mut err_str) };
 
         if code == 1 && !err_str.is_null() {
             return Err(LLVMString::new(err_str));
@@ -714,7 +736,10 @@ impl Module {
     /// assert_eq!(*module.get_data_layout(), data_layout);
     /// ```
     pub fn get_data_layout(&self) -> Ref<DataLayout> {
-        Ref::map(self.data_layout.borrow(), |l| l.as_ref().expect("DataLayout should always exist until Drop"))
+        Ref::map(self.data_layout.borrow(), |l| {
+            l.as_ref()
+                .expect("DataLayout should always exist until Drop")
+        })
     }
 
     // REVIEW: Ensure the replaced string ptr still gets cleaned up by the module (I think it does)
@@ -757,20 +782,25 @@ impl Module {
 
     /// Prints the content of the `Module` to a string.
     pub fn print_to_string(&self) -> LLVMString {
-        let module_string = unsafe {
-            LLVMPrintModuleToString(self.module.get())
-        };
+        let module_string = unsafe { LLVMPrintModuleToString(self.module.get()) };
 
         LLVMString::new(module_string)
     }
 
     /// Prints the content of the `Module` to a file.
     pub fn print_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), LLVMString> {
-        let path_str = path.as_ref().to_str().expect("Did not find a valid Unicode path string");
+        let path_str = path
+            .as_ref()
+            .to_str()
+            .expect("Did not find a valid Unicode path string");
         let path = CString::new(path_str).expect("Could not convert path to CString");
         let mut err_string = unsafe { zeroed() };
         let return_code = unsafe {
-            LLVMPrintModuleToFile(self.module.get(), path.as_ptr() as *const c_char, &mut err_string)
+            LLVMPrintModuleToFile(
+                self.module.get(),
+                path.as_ptr() as *const c_char,
+                &mut err_string,
+            )
         };
 
         if return_code == 1 {
@@ -782,19 +812,31 @@ impl Module {
 
     /// Sets the inline assembly for the `Module`.
     pub fn set_inline_assembly(&self, asm: &str) {
-        #[cfg(any(feature = "llvm3-6", feature = "llvm3-7", feature = "llvm3-8", feature = "llvm3-9",
-                  feature = "llvm4-0", feature = "llvm5-0", feature = "llvm6-0"))]
+        #[cfg(any(
+            feature = "llvm3-6",
+            feature = "llvm3-7",
+            feature = "llvm3-8",
+            feature = "llvm3-9",
+            feature = "llvm4-0",
+            feature = "llvm5-0",
+            feature = "llvm6-0"
+        ))]
         {
             use llvm_sys::core::LLVMSetModuleInlineAsm;
 
             let c_string = CString::new(asm).expect("Conversion to CString failed unexpectedly");
 
-            unsafe {
-                LLVMSetModuleInlineAsm(self.module.get(), c_string.as_ptr())
-            }
+            unsafe { LLVMSetModuleInlineAsm(self.module.get(), c_string.as_ptr()) }
         }
-        #[cfg(not(any(feature = "llvm3-6", feature = "llvm3-7", feature = "llvm3-8", feature = "llvm3-9",
-                      feature = "llvm4-0", feature = "llvm5-0", feature = "llvm6-0")))]
+        #[cfg(not(any(
+            feature = "llvm3-6",
+            feature = "llvm3-7",
+            feature = "llvm3-8",
+            feature = "llvm3-9",
+            feature = "llvm4-0",
+            feature = "llvm5-0",
+            feature = "llvm6-0"
+        )))]
         {
             use llvm_sys::core::LLVMSetModuleInlineAsm2;
 
@@ -849,7 +891,11 @@ impl Module {
         let c_string = CString::new(key).expect("Conversion to CString failed unexpectedly");
 
         unsafe {
-            LLVMAddNamedMetadataOperand(self.module.get(), c_string.as_ptr(), metadata.as_value_ref())
+            LLVMAddNamedMetadataOperand(
+                self.module.get(),
+                c_string.as_ptr(),
+                metadata.as_value_ref(),
+            )
         }
     }
 
@@ -894,9 +940,7 @@ impl Module {
     pub fn get_global_metadata_size(&self, key: &str) -> u32 {
         let c_string = CString::new(key).expect("Conversion to CString failed unexpectedly");
 
-        unsafe {
-            LLVMGetNamedMetadataNumOperands(self.module.get(), c_string.as_ptr())
-        }
+        unsafe { LLVMGetNamedMetadataNumOperands(self.module.get(), c_string.as_ptr()) }
     }
 
     // SubTypes: -> Vec<MetadataValue<Node>>
@@ -974,9 +1018,7 @@ impl Module {
     /// assert_eq!(module.get_first_global().unwrap(), global);
     /// ```
     pub fn get_first_global(&self) -> Option<GlobalValue> {
-        let value = unsafe {
-            LLVMGetFirstGlobal(self.module.get())
-        };
+        let value = unsafe { LLVMGetFirstGlobal(self.module.get()) };
 
         if value.is_null() {
             return None;
@@ -1004,9 +1046,7 @@ impl Module {
     /// assert_eq!(module.get_last_global().unwrap(), global);
     /// ```
     pub fn get_last_global(&self) -> Option<GlobalValue> {
-        let value = unsafe {
-            LLVMGetLastGlobal(self.module.get())
-        };
+        let value = unsafe { LLVMGetLastGlobal(self.module.get()) };
 
         if value.is_null() {
             return None;
@@ -1035,9 +1075,7 @@ impl Module {
     /// ```
     pub fn get_global(&self, name: &str) -> Option<GlobalValue> {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
-        let value = unsafe {
-            LLVMGetNamedGlobal(self.module.get(), c_string.as_ptr())
-        };
+        let value = unsafe { LLVMGetNamedGlobal(self.module.get(), c_string.as_ptr()) };
 
         if value.is_null() {
             return None;
@@ -1071,9 +1109,8 @@ impl Module {
         // hasen't yet been removed even in the unreleased LLVM 7. Seems fine to use instead of switching to their
         // error diagnostics handler
         #[allow(deprecated)]
-        let success = unsafe {
-            LLVMParseBitcode(buffer.memory_buffer, &mut module, &mut err_string)
-        };
+        let success =
+            unsafe { LLVMParseBitcode(buffer.memory_buffer, &mut module, &mut err_string) };
 
         if success != 0 {
             return Err(LLVMString::new(err_string));
@@ -1100,7 +1137,10 @@ impl Module {
     /// assert_eq!(module.unwrap().get_context(), Context::get_global());
     ///
     /// ```
-    pub fn parse_bitcode_from_buffer_in_context(buffer: &MemoryBuffer, context: &Context) -> Result<Self, LLVMString> {
+    pub fn parse_bitcode_from_buffer_in_context(
+        buffer: &MemoryBuffer,
+        context: &Context,
+    ) -> Result<Self, LLVMString> {
         let mut module = unsafe { zeroed() };
         let mut err_string = unsafe { zeroed() };
 
@@ -1109,7 +1149,12 @@ impl Module {
         // error diagnostics handler
         #[allow(deprecated)]
         let success = unsafe {
-            LLVMParseBitcodeInContext(*context.context, buffer.memory_buffer, &mut module, &mut err_string)
+            LLVMParseBitcodeInContext(
+                *context.context,
+                buffer.memory_buffer,
+                &mut module,
+                &mut err_string,
+            )
         };
 
         if success != 0 {
@@ -1160,7 +1205,10 @@ impl Module {
     /// ```
     // LLVMGetBitcodeModuleInContext was a pain to use, so I seem to be able to achieve the same effect
     // by reusing create_from_file instead. This is basically just a convenience function.
-    pub fn parse_bitcode_from_path_in_context<P: AsRef<Path>>(path: P, context: &Context) -> Result<Self, LLVMString> {
+    pub fn parse_bitcode_from_path_in_context<P: AsRef<Path>>(
+        path: P,
+        context: &Context,
+    ) -> Result<Self, LLVMString> {
         let buffer = MemoryBuffer::create_from_file(path.as_ref())?;
 
         Self::parse_bitcode_from_buffer_in_context(&buffer, &context)
@@ -1182,13 +1230,9 @@ impl Module {
     #[llvm_versions(3.9..=latest)]
     pub fn get_name(&self) -> &CStr {
         let mut length = 0;
-        let cstr_ptr = unsafe {
-            LLVMGetModuleIdentifier(self.module.get(), &mut length)
-        };
+        let cstr_ptr = unsafe { LLVMGetModuleIdentifier(self.module.get(), &mut length) };
 
-        unsafe {
-            CStr::from_ptr(cstr_ptr)
-        }
+        unsafe { CStr::from_ptr(cstr_ptr) }
     }
 
     /// Assigns the name of this `Module`.
@@ -1209,7 +1253,11 @@ impl Module {
     #[llvm_versions(3.9..=latest)]
     pub fn set_name(&self, name: &str) {
         unsafe {
-            LLVMSetModuleIdentifier(self.module.get(), name.as_ptr() as *const c_char, name.len())
+            LLVMSetModuleIdentifier(
+                self.module.get(),
+                name.as_ptr() as *const c_char,
+                name.len(),
+            )
         }
     }
 
@@ -1236,13 +1284,9 @@ impl Module {
         use llvm_sys::core::LLVMGetSourceFileName;
 
         let mut len = 0;
-        let ptr = unsafe {
-            LLVMGetSourceFileName(self.module.get(), &mut len)
-        };
+        let ptr = unsafe { LLVMGetSourceFileName(self.module.get(), &mut len) };
 
-        unsafe {
-            CStr::from_ptr(ptr)
-        }
+        unsafe { CStr::from_ptr(ptr) }
     }
 
     /// Sets the source file name. It defaults to the module identifier but is separate from it.
@@ -1268,7 +1312,11 @@ impl Module {
         use llvm_sys::core::LLVMSetSourceFileName;
 
         unsafe {
-            LLVMSetSourceFileName(self.module.get(), file_name.as_ptr() as *const c_char, file_name.len())
+            LLVMSetSourceFileName(
+                self.module.get(),
+                file_name.as_ptr() as *const c_char,
+                file_name.len(),
+            )
         }
     }
 
@@ -1290,7 +1338,7 @@ impl Module {
 
         #[cfg(any(feature = "llvm3-6", feature = "llvm3-7"))]
         {
-            use llvm_sys::linker::{LLVMLinkerMode, LLVMLinkModules};
+            use llvm_sys::linker::{LLVMLinkModules, LLVMLinkerMode};
 
             let mut err_string = ptr::null_mut();
             let mode = LLVMLinkerMode::LLVMLinkerDestroySource;
@@ -1309,8 +1357,8 @@ impl Module {
         #[cfg(not(any(feature = "llvm3-6", feature = "llvm3-7")))]
         {
             use crate::support::error_handling::get_error_str_diagnostic_handler;
-            use llvm_sys::linker::LLVMLinkModules2;
             use libc::c_void;
+            use llvm_sys::linker::LLVMLinkModules2;
 
             let context = self.get_context();
 
@@ -1321,9 +1369,7 @@ impl Module {
             // Here we assign an error handler to extract the error message, if any, for us.
             context.set_diagnostic_handler(get_error_str_diagnostic_handler, char_ptr_ptr);
 
-            let code = unsafe {
-                LLVMLinkModules2(self.module.get(), other.module.get())
-            };
+            let code = unsafe { LLVMLinkModules2(self.module.get(), other.module.get()) };
 
             forget(other);
 
@@ -1344,9 +1390,7 @@ impl Module {
         use llvm_sys::comdat::LLVMGetOrInsertComdat;
 
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
-        let comdat_ptr = unsafe {
-            LLVMGetOrInsertComdat(self.module.get(), c_string.as_ptr())
-        };
+        let comdat_ptr = unsafe { LLVMGetOrInsertComdat(self.module.get(), c_string.as_ptr()) };
 
         Comdat::new(comdat_ptr)
     }
@@ -1370,9 +1414,7 @@ impl Module {
         let global_ctx = Context::get_global();
         let ctx = self.non_global_context.as_ref().unwrap_or(&*global_ctx);
 
-        let flag_value = unsafe {
-            LLVMMetadataAsValue(*ctx.context, flag)
-        };
+        let flag_value = unsafe { LLVMMetadataAsValue(*ctx.context, flag) };
 
         Some(MetadataValue::new(flag_value))
     }
@@ -1384,7 +1426,13 @@ impl Module {
         let md = flag.as_metadata_ref();
 
         unsafe {
-            LLVMAddModuleFlag(self.module.get(), behavior.as_llvm_enum(), key.as_ptr() as *mut c_char, key.len(), md)
+            LLVMAddModuleFlag(
+                self.module.get(),
+                behavior.as_llvm_enum(),
+                key.as_ptr() as *mut c_char,
+                key.len(),
+                md,
+            )
         }
     }
 
@@ -1392,15 +1440,24 @@ impl Module {
     /// will likely invalidate the module.
     // REVIEW: What happens if value is not const?
     #[llvm_versions(7.0..=latest)]
-    pub fn add_basic_value_flag<BV: BasicValue>(&self, key: &str, behavior: FlagBehavior, flag: BV) {
+    pub fn add_basic_value_flag<BV: BasicValue>(
+        &self,
+        key: &str,
+        behavior: FlagBehavior,
+        flag: BV,
+    ) {
         use llvm_sys::core::LLVMValueAsMetadata;
 
-        let md = unsafe {
-            LLVMValueAsMetadata(flag.as_value_ref())
-        };
+        let md = unsafe { LLVMValueAsMetadata(flag.as_value_ref()) };
 
         unsafe {
-            LLVMAddModuleFlag(self.module.get(), behavior.as_llvm_enum(), key.as_ptr() as *mut c_char, key.len(), md)
+            LLVMAddModuleFlag(
+                self.module.get(),
+                behavior.as_llvm_enum(),
+                key.as_ptr() as *mut c_char,
+                key.len(),
+                md,
+            )
         }
     }
 }
@@ -1412,9 +1469,7 @@ impl Clone for Module {
 
         assert!(verify.is_ok(), "Cloning a Module seems to segfault when module is not valid. We are preventing that here. Error: {}", verify.unwrap_err());
 
-        let module = unsafe {
-            LLVMCloneModule(self.module.get())
-        };
+        let module = unsafe { LLVMCloneModule(self.module.get()) };
 
         Module::new(module, self.non_global_context.as_ref())
     }
@@ -1435,7 +1490,7 @@ impl Drop for Module {
 }
 
 #[llvm_versions(7.0..=latest)]
-enum_rename!{
+enum_rename! {
     /// Defines the operational behavior for a module wide flag. This documenation comes directly
     /// from the LLVM docs
     FlagBehavior <=> LLVMModuleFlagBehavior {

@@ -2,9 +2,9 @@ extern crate inkwell;
 
 use std::ffi::CString;
 
-use self::inkwell::AddressSpace;
 use self::inkwell::context::Context;
 use self::inkwell::types::{BasicType, FloatType, IntType, StructType, VoidType};
+use self::inkwell::AddressSpace;
 
 #[test]
 fn test_struct_type() {
@@ -21,7 +21,10 @@ fn test_struct_type() {
     assert!(av_struct.get_name().is_none());
     assert_eq!(*av_struct.get_context(), context);
     assert_eq!(av_struct.count_fields(), 2);
-    assert_eq!(av_struct.get_field_types(), &[int_vector.into(), float_array.into()]);
+    assert_eq!(
+        av_struct.get_field_types(),
+        &[int_vector.into(), float_array.into()]
+    );
 
     #[cfg(not(feature = "llvm3-6"))]
     {
@@ -62,7 +65,10 @@ fn test_struct_type() {
     assert!(!opaque_struct.is_packed());
     assert!(opaque_struct.is_opaque());
     assert!(!opaque_struct.is_sized());
-    assert_eq!(opaque_struct.get_name(), Some(&*CString::new("opaque_struct").unwrap()));
+    assert_eq!(
+        opaque_struct.get_name(),
+        Some(&*CString::new("opaque_struct").unwrap())
+    );
     assert_eq!(*opaque_struct.get_context(), context);
     assert_eq!(opaque_struct.count_fields(), 0);
     assert!(opaque_struct.get_field_types().is_empty());
@@ -82,10 +88,16 @@ fn test_struct_type() {
     assert!(no_longer_opaque_struct.is_packed());
     assert!(!no_longer_opaque_struct.is_opaque());
     assert!(no_longer_opaque_struct.is_sized());
-    assert_eq!(no_longer_opaque_struct.get_name(), Some(&*CString::new("opaque_struct").unwrap()));
+    assert_eq!(
+        no_longer_opaque_struct.get_name(),
+        Some(&*CString::new("opaque_struct").unwrap())
+    );
     assert_eq!(*no_longer_opaque_struct.get_context(), context);
     assert_eq!(no_longer_opaque_struct.count_fields(), 2);
-    assert_eq!(no_longer_opaque_struct.get_field_types(), &[int_vector.into(), float_array.into()]);
+    assert_eq!(
+        no_longer_opaque_struct.get_field_types(),
+        &[int_vector.into(), float_array.into()]
+    );
 
     #[cfg(not(feature = "llvm3-6"))]
     {
@@ -95,8 +107,13 @@ fn test_struct_type() {
         assert!(field_1.is_vector_type());
         assert!(field_2.is_array_type());
         assert!(no_longer_opaque_struct.get_field_type_at_index(2).is_none());
-        assert!(no_longer_opaque_struct.get_field_type_at_index(200).is_none());
-        assert_eq!(no_longer_opaque_struct.get_field_types(), vec![field_1, field_2]);
+        assert!(no_longer_opaque_struct
+            .get_field_type_at_index(200)
+            .is_none());
+        assert_eq!(
+            no_longer_opaque_struct.get_field_types(),
+            vec![field_1, field_2]
+        );
     }
 }
 
@@ -190,7 +207,9 @@ fn test_sized_types() {
     assert!(struct_type2.ptr_type(AddressSpace::Generic).is_sized());
     assert!(struct_type3.ptr_type(AddressSpace::Generic).is_sized());
     assert!(struct_type4.ptr_type(AddressSpace::Generic).is_sized());
-    assert!(opaque_struct_type.ptr_type(AddressSpace::Generic).is_sized());
+    assert!(opaque_struct_type
+        .ptr_type(AddressSpace::Generic)
+        .is_sized());
 
     assert!(bool_type.array_type(42).is_sized());
     assert!(i8_type.array_type(42).is_sized());
@@ -292,22 +311,58 @@ fn test_const_zero() {
     assert!(vec_zero.is_null());
     assert!(array_zero.is_null());
 
-    assert_eq!(*bool_zero.print_to_string(), *CString::new("i1 false").unwrap());
+    assert_eq!(
+        *bool_zero.print_to_string(),
+        *CString::new("i1 false").unwrap()
+    );
     assert_eq!(*i8_zero.print_to_string(), *CString::new("i8 0").unwrap());
     assert_eq!(*i16_zero.print_to_string(), *CString::new("i16 0").unwrap());
     assert_eq!(*i32_zero.print_to_string(), *CString::new("i32 0").unwrap());
     assert_eq!(*i64_zero.print_to_string(), *CString::new("i64 0").unwrap());
-    assert_eq!(*i128_zero.print_to_string(), *CString::new("i128 0").unwrap());
-    assert_eq!(*f16_zero.print_to_string(), *CString::new("half 0xH0000").unwrap());
-    assert_eq!(*f32_zero.print_to_string(), *CString::new("float 0.000000e+00").unwrap());
-    assert_eq!(*f64_zero.print_to_string(), *CString::new("double 0.000000e+00").unwrap());
-    assert_eq!(*f80_zero.print_to_string(), *CString::new("x86_fp80 0xK00000000000000000000").unwrap());
-    assert_eq!(*f128_zero.print_to_string(), *CString::new("fp128 0xL00000000000000000000000000000000").unwrap());
-    assert_eq!(*ppc_f128_zero.print_to_string(), *CString::new("ppc_fp128 0xM00000000000000000000000000000000").unwrap());
-    assert_eq!(*struct_zero.print_to_string(), *CString::new("{ i8, fp128 } zeroinitializer").unwrap());
-    assert_eq!(*ptr_zero.print_to_string(), *CString::new("double* null").unwrap());
-    assert_eq!(*vec_zero.print_to_string(), *CString::new("<42 x double> zeroinitializer").unwrap());
-    assert_eq!(*array_zero.print_to_string(), *CString::new("[42 x double] zeroinitializer").unwrap());
+    assert_eq!(
+        *i128_zero.print_to_string(),
+        *CString::new("i128 0").unwrap()
+    );
+    assert_eq!(
+        *f16_zero.print_to_string(),
+        *CString::new("half 0xH0000").unwrap()
+    );
+    assert_eq!(
+        *f32_zero.print_to_string(),
+        *CString::new("float 0.000000e+00").unwrap()
+    );
+    assert_eq!(
+        *f64_zero.print_to_string(),
+        *CString::new("double 0.000000e+00").unwrap()
+    );
+    assert_eq!(
+        *f80_zero.print_to_string(),
+        *CString::new("x86_fp80 0xK00000000000000000000").unwrap()
+    );
+    assert_eq!(
+        *f128_zero.print_to_string(),
+        *CString::new("fp128 0xL00000000000000000000000000000000").unwrap()
+    );
+    assert_eq!(
+        *ppc_f128_zero.print_to_string(),
+        *CString::new("ppc_fp128 0xM00000000000000000000000000000000").unwrap()
+    );
+    assert_eq!(
+        *struct_zero.print_to_string(),
+        *CString::new("{ i8, fp128 } zeroinitializer").unwrap()
+    );
+    assert_eq!(
+        *ptr_zero.print_to_string(),
+        *CString::new("double* null").unwrap()
+    );
+    assert_eq!(
+        *vec_zero.print_to_string(),
+        *CString::new("<42 x double> zeroinitializer").unwrap()
+    );
+    assert_eq!(
+        *array_zero.print_to_string(),
+        *CString::new("[42 x double] zeroinitializer").unwrap()
+    );
 }
 
 #[test]
@@ -353,16 +408,24 @@ fn test_basic_type_enum() {
     let int = context.i32_type();
     let types: &[&dyn BasicType] = &[
         // ints and floats
-        &int, &context.i64_type(), &context.f32_type(), &context.f64_type(),
+        &int,
+        &context.i64_type(),
+        &context.f32_type(),
+        &context.f64_type(),
         // derived types
-        &int.array_type(0), &int.ptr_type(addr),
+        &int.array_type(0),
+        &int.ptr_type(addr),
         &context.struct_type(&[int.as_basic_type_enum()], false),
-        &int.vec_type(0)
+        &int.vec_type(0),
     ];
     for basic_type in types {
-        assert_eq!(basic_type.as_basic_type_enum().ptr_type(addr),
-                   basic_type.ptr_type(addr));
-        assert_eq!(basic_type.as_basic_type_enum().array_type(0),
-                   basic_type.array_type(0));
+        assert_eq!(
+            basic_type.as_basic_type_enum().ptr_type(addr),
+            basic_type.ptr_type(addr)
+        );
+        assert_eq!(
+            basic_type.as_basic_type_enum().array_type(0),
+            basic_type.array_type(0)
+        );
     }
 }

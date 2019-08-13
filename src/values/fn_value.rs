@@ -1,14 +1,27 @@
-use llvm_sys::analysis::{LLVMVerifierFailureAction, LLVMVerifyFunction, LLVMViewFunctionCFG, LLVMViewFunctionCFGOnly};
-use llvm_sys::core::{LLVMIsAFunction, LLVMIsConstant, LLVMGetLinkage, LLVMGetPreviousFunction, LLVMGetNextFunction, LLVMGetParam, LLVMCountParams, LLVMGetLastParam, LLVMCountBasicBlocks, LLVMGetFirstParam, LLVMGetNextParam, LLVMGetBasicBlocks, LLVMAppendBasicBlock, LLVMDeleteFunction, LLVMGetLastBasicBlock, LLVMGetFirstBasicBlock, LLVMGetIntrinsicID, LLVMGetFunctionCallConv, LLVMSetFunctionCallConv, LLVMGetGC, LLVMSetGC, LLVMSetLinkage, LLVMSetParamAlignment, LLVMGetParams};
+use llvm_sys::analysis::{
+    LLVMVerifierFailureAction, LLVMVerifyFunction, LLVMViewFunctionCFG, LLVMViewFunctionCFGOnly,
+};
+#[llvm_versions(3.9..=latest)]
+use llvm_sys::core::{
+    LLVMAddAttributeAtIndex, LLVMGetAttributeCountAtIndex, LLVMGetEnumAttributeAtIndex,
+    LLVMGetStringAttributeAtIndex, LLVMRemoveEnumAttributeAtIndex,
+    LLVMRemoveStringAttributeAtIndex,
+};
+use llvm_sys::core::{
+    LLVMAppendBasicBlock, LLVMCountBasicBlocks, LLVMCountParams, LLVMDeleteFunction,
+    LLVMGetBasicBlocks, LLVMGetFirstBasicBlock, LLVMGetFirstParam, LLVMGetFunctionCallConv,
+    LLVMGetGC, LLVMGetIntrinsicID, LLVMGetLastBasicBlock, LLVMGetLastParam, LLVMGetLinkage,
+    LLVMGetNextFunction, LLVMGetNextParam, LLVMGetParam, LLVMGetParams, LLVMGetPreviousFunction,
+    LLVMIsAFunction, LLVMIsConstant, LLVMSetFunctionCallConv, LLVMSetGC, LLVMSetLinkage,
+    LLVMSetParamAlignment,
+};
 #[llvm_versions(3.7..=latest)]
 use llvm_sys::core::{LLVMGetPersonalityFn, LLVMSetPersonalityFn};
-#[llvm_versions(3.9..=latest)]
-use llvm_sys::core::{LLVMAddAttributeAtIndex, LLVMGetAttributeCountAtIndex, LLVMGetEnumAttributeAtIndex, LLVMGetStringAttributeAtIndex, LLVMRemoveEnumAttributeAtIndex, LLVMRemoveStringAttributeAtIndex};
-use llvm_sys::prelude::{LLVMValueRef, LLVMBasicBlockRef};
+use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMValueRef};
 
 use std::ffi::{CStr, CString};
-use std::mem::forget;
 use std::fmt;
+use std::mem::forget;
 
 #[llvm_versions(3.9..=latest)]
 use crate::attributes::{Attribute, AttributeLoc};
@@ -31,25 +44,21 @@ impl FunctionValue {
             return None;
         }
 
-        unsafe {
-            assert!(!LLVMIsAFunction(value).is_null())
-        }
+        unsafe { assert!(!LLVMIsAFunction(value).is_null()) }
 
-        Some(FunctionValue { fn_value: Value::new(value) })
+        Some(FunctionValue {
+            fn_value: Value::new(value),
+        })
     }
 
     pub fn get_linkage(&self) -> Linkage {
-        let linkage = unsafe {
-            LLVMGetLinkage(self.as_value_ref())
-        };
+        let linkage = unsafe { LLVMGetLinkage(self.as_value_ref()) };
 
         Linkage::new(linkage)
     }
 
     pub fn set_linkage(&self, linkage: Linkage) {
-        unsafe {
-            LLVMSetLinkage(self.as_value_ref(), linkage.as_llvm_enum())
-        }
+        unsafe { LLVMSetLinkage(self.as_value_ref(), linkage.as_llvm_enum()) }
     }
 
     pub fn is_null(&self) -> bool {
@@ -76,34 +85,26 @@ impl FunctionValue {
             LLVMVerifierFailureAction::LLVMReturnStatusAction
         };
 
-        let code = unsafe {
-            LLVMVerifyFunction(self.fn_value.value, action)
-        };
+        let code = unsafe { LLVMVerifyFunction(self.fn_value.value, action) };
 
         code != 1
     }
 
     // REVIEW: If there's a demand, could easily create a module.get_functions() -> Iterator
     pub fn get_next_function(&self) -> Option<Self> {
-        let function = unsafe {
-            LLVMGetNextFunction(self.as_value_ref())
-        };
+        let function = unsafe { LLVMGetNextFunction(self.as_value_ref()) };
 
         FunctionValue::new(function)
     }
 
     pub fn get_previous_function(&self) -> Option<Self> {
-        let function = unsafe {
-            LLVMGetPreviousFunction(self.as_value_ref())
-        };
+        let function = unsafe { LLVMGetPreviousFunction(self.as_value_ref()) };
 
         FunctionValue::new(function)
     }
 
     pub fn get_first_param(&self) -> Option<BasicValueEnum> {
-        let param = unsafe {
-            LLVMGetFirstParam(self.as_value_ref())
-        };
+        let param = unsafe { LLVMGetFirstParam(self.as_value_ref()) };
 
         if param.is_null() {
             return None;
@@ -113,9 +114,7 @@ impl FunctionValue {
     }
 
     pub fn get_last_param(&self) -> Option<BasicValueEnum> {
-        let param = unsafe {
-            LLVMGetLastParam(self.as_value_ref())
-        };
+        let param = unsafe { LLVMGetLastParam(self.as_value_ref()) };
 
         if param.is_null() {
             return None;
@@ -125,9 +124,7 @@ impl FunctionValue {
     }
 
     pub fn get_first_basic_block(&self) -> Option<BasicBlock> {
-        let bb = unsafe {
-            LLVMGetFirstBasicBlock(self.as_value_ref())
-        };
+        let bb = unsafe { LLVMGetFirstBasicBlock(self.as_value_ref()) };
 
         BasicBlock::new(bb)
     }
@@ -137,9 +134,7 @@ impl FunctionValue {
     pub fn append_basic_block(&self, name: &str) -> BasicBlock {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
-        let bb = unsafe {
-            LLVMAppendBasicBlock(self.as_value_ref(), c_string.as_ptr())
-        };
+        let bb = unsafe { LLVMAppendBasicBlock(self.as_value_ref(), c_string.as_ptr()) };
 
         BasicBlock::new(bb).expect("Appending basic block should never fail")
     }
@@ -151,23 +146,17 @@ impl FunctionValue {
             return None;
         }
 
-        let param = unsafe {
-            LLVMGetParam(self.as_value_ref(), nth)
-        };
+        let param = unsafe { LLVMGetParam(self.as_value_ref(), nth) };
 
         Some(BasicValueEnum::new(param))
     }
 
     pub fn count_params(&self) -> u32 {
-        unsafe {
-            LLVMCountParams(self.fn_value.value)
-        }
+        unsafe { LLVMCountParams(self.fn_value.value) }
     }
 
     pub fn count_basic_blocks(&self) -> u32 {
-        unsafe {
-            LLVMCountBasicBlocks(self.as_value_ref())
-        }
+        unsafe { LLVMCountBasicBlocks(self.as_value_ref()) }
     }
 
     pub fn get_basic_blocks(&self) -> Vec<BasicBlock> {
@@ -183,7 +172,10 @@ impl FunctionValue {
             Vec::from_raw_parts(ptr, count as usize, count as usize)
         };
 
-        raw_vec.iter().map(|val| BasicBlock::new(*val).unwrap()).collect()
+        raw_vec
+            .iter()
+            .map(|val| BasicBlock::new(*val).unwrap())
+            .collect()
     }
 
     pub fn get_param_iter(&self) -> ParamValueIter {
@@ -206,13 +198,14 @@ impl FunctionValue {
             Vec::from_raw_parts(ptr, count as usize, count as usize)
         };
 
-        raw_vec.iter().map(|val| BasicValueEnum::new(*val)).collect()
+        raw_vec
+            .iter()
+            .map(|val| BasicValueEnum::new(*val))
+            .collect()
     }
 
     pub fn get_last_basic_block(&self) -> Option<BasicBlock> {
-        let bb = unsafe {
-            LLVMGetLastBasicBlock(self.fn_value.value)
-        };
+        let bb = unsafe { LLVMGetLastBasicBlock(self.fn_value.value) };
 
         BasicBlock::new(bb)
     }
@@ -222,15 +215,11 @@ impl FunctionValue {
     }
 
     pub fn view_function_config(&self) {
-        unsafe {
-            LLVMViewFunctionCFG(self.as_value_ref())
-        }
+        unsafe { LLVMViewFunctionCFG(self.as_value_ref()) }
     }
 
     pub fn view_function_config_only(&self) {
-        unsafe {
-            LLVMViewFunctionCFGOnly(self.as_value_ref())
-        }
+        unsafe { LLVMViewFunctionCFGOnly(self.as_value_ref()) }
     }
 
     // TODO: Look for ways to prevent use after delete but maybe not possible
@@ -261,9 +250,7 @@ impl FunctionValue {
     pub fn has_personality_function(&self) -> bool {
         use llvm_sys::core::LLVMHasPersonalityFn;
 
-        unsafe {
-            LLVMHasPersonalityFn(self.as_value_ref()) == 1
-        }
+        unsafe { LLVMHasPersonalityFn(self.as_value_ref()) == 1 }
     }
 
     #[cfg(not(any(feature = "llvm3-6", feature = "llvm3-8")))]
@@ -278,9 +265,7 @@ impl FunctionValue {
             }
         }
 
-        let value = unsafe {
-            LLVMGetPersonalityFn(self.as_value_ref())
-        };
+        let value = unsafe { LLVMGetPersonalityFn(self.as_value_ref()) };
 
         FunctionValue::new(value)
     }
@@ -298,41 +283,29 @@ impl FunctionValue {
 
     #[llvm_versions(3.7..=latest)]
     pub fn set_personality_function(&self, personality_fn: FunctionValue) {
-        unsafe {
-            LLVMSetPersonalityFn(self.as_value_ref(), personality_fn.as_value_ref())
-        }
+        unsafe { LLVMSetPersonalityFn(self.as_value_ref(), personality_fn.as_value_ref()) }
     }
 
     pub fn get_intrinsic_id(&self) -> u32 {
-        unsafe {
-            LLVMGetIntrinsicID(self.as_value_ref())
-        }
+        unsafe { LLVMGetIntrinsicID(self.as_value_ref()) }
     }
 
     pub fn get_call_conventions(&self) -> u32 {
-        unsafe {
-            LLVMGetFunctionCallConv(self.as_value_ref())
-        }
+        unsafe { LLVMGetFunctionCallConv(self.as_value_ref()) }
     }
 
     pub fn set_call_conventions(&self, call_conventions: u32) {
-        unsafe {
-            LLVMSetFunctionCallConv(self.as_value_ref(), call_conventions)
-        }
+        unsafe { LLVMSetFunctionCallConv(self.as_value_ref(), call_conventions) }
     }
 
     pub fn get_gc(&self) -> &CStr {
-        unsafe {
-            CStr::from_ptr(LLVMGetGC(self.as_value_ref()))
-        }
+        unsafe { CStr::from_ptr(LLVMGetGC(self.as_value_ref())) }
     }
 
     pub fn set_gc(&self, gc: &str) {
         let c_string = CString::new(gc).expect("Conversion to CString failed unexpectedly");
 
-        unsafe {
-            LLVMSetGC(self.as_value_ref(), c_string.as_ptr())
-        }
+        unsafe { LLVMSetGC(self.as_value_ref(), c_string.as_ptr()) }
     }
 
     pub fn replace_all_uses_with(&self, other: FunctionValue) {
@@ -388,9 +361,7 @@ impl FunctionValue {
     /// ```
     #[llvm_versions(3.9..=latest)]
     pub fn count_attributes(&self, loc: AttributeLoc) -> u32 {
-        unsafe {
-            LLVMGetAttributeCountAtIndex(self.as_value_ref(), loc.get_index())
-        }
+        unsafe { LLVMGetAttributeCountAtIndex(self.as_value_ref(), loc.get_index()) }
     }
 
     /// Removes a string `Attribute` belonging to the specified location in this `FunctionValue`.
@@ -414,7 +385,12 @@ impl FunctionValue {
     #[llvm_versions(3.9..=latest)]
     pub fn remove_string_attribute(&self, loc: AttributeLoc, key: &str) {
         unsafe {
-            LLVMRemoveStringAttributeAtIndex(self.as_value_ref(), loc.get_index(), key.as_ptr() as *const c_char, key.len() as u32)
+            LLVMRemoveStringAttributeAtIndex(
+                self.as_value_ref(),
+                loc.get_index(),
+                key.as_ptr() as *const c_char,
+                key.len() as u32,
+            )
         }
     }
 
@@ -438,9 +414,7 @@ impl FunctionValue {
     /// ```
     #[llvm_versions(3.9..=latest)]
     pub fn remove_enum_attribute(&self, loc: AttributeLoc, kind_id: u32) {
-        unsafe {
-            LLVMRemoveEnumAttributeAtIndex(self.as_value_ref(), loc.get_index(), kind_id)
-        }
+        unsafe { LLVMRemoveEnumAttributeAtIndex(self.as_value_ref(), loc.get_index(), kind_id) }
     }
 
     /// Gets an enum `Attribute` belonging to the specified location in this `FunctionValue`.
@@ -465,9 +439,8 @@ impl FunctionValue {
     // SubTypes: -> Option<Attribute<Enum>>
     #[llvm_versions(3.9..=latest)]
     pub fn get_enum_attribute(&self, loc: AttributeLoc, kind_id: u32) -> Option<Attribute> {
-        let ptr = unsafe {
-            LLVMGetEnumAttributeAtIndex(self.as_value_ref(), loc.get_index(), kind_id)
-        };
+        let ptr =
+            unsafe { LLVMGetEnumAttributeAtIndex(self.as_value_ref(), loc.get_index(), kind_id) };
 
         if ptr.is_null() {
             return None;
@@ -499,7 +472,12 @@ impl FunctionValue {
     #[llvm_versions(3.9..=latest)]
     pub fn get_string_attribute(&self, loc: AttributeLoc, key: &str) -> Option<Attribute> {
         let ptr = unsafe {
-            LLVMGetStringAttributeAtIndex(self.as_value_ref(), loc.get_index(), key.as_ptr() as *const c_char, key.len() as u32)
+            LLVMGetStringAttributeAtIndex(
+                self.as_value_ref(),
+                loc.get_index(),
+                key.as_ptr() as *const c_char,
+                key.len() as u32,
+            )
         };
 
         if ptr.is_null() {
@@ -511,9 +489,7 @@ impl FunctionValue {
 
     pub fn set_param_alignment(&self, param_index: u32, alignment: u32) {
         if let Some(param) = self.get_nth_param(param_index) {
-            unsafe {
-                LLVMSetParamAlignment(param.as_value_ref(), alignment)
-            }
+            unsafe { LLVMSetParamAlignment(param.as_value_ref(), alignment) }
         }
     }
 
@@ -536,9 +512,7 @@ impl fmt::Debug for FunctionValue {
         let llvm_value = self.print_to_string();
         let llvm_type = self.get_type();
         let name = self.get_name();
-        let is_const = unsafe {
-            LLVMIsConstant(self.fn_value.value) == 1
-        };
+        let is_const = unsafe { LLVMIsConstant(self.fn_value.value) == 1 };
         let is_null = self.is_null();
 
         f.debug_struct("FunctionValue")
@@ -563,9 +537,7 @@ impl Iterator for ParamValueIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.start {
-            let first_value = unsafe {
-                LLVMGetFirstParam(self.param_iter_value)
-            };
+            let first_value = unsafe { LLVMGetFirstParam(self.param_iter_value) };
 
             if first_value.is_null() {
                 return None;
@@ -578,9 +550,7 @@ impl Iterator for ParamValueIter {
             return Some(Self::Item::new(first_value));
         }
 
-        let next_value = unsafe {
-            LLVMGetNextParam(self.param_iter_value)
-        };
+        let next_value = unsafe { LLVMGetNextParam(self.param_iter_value) };
 
         if next_value.is_null() {
             return None;

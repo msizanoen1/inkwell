@@ -3,10 +3,15 @@ use llvm_sys::prelude::LLVMTypeRef;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 
-use crate::AddressSpace;
-use crate::types::{IntType, FunctionType, FloatType, PointerType, StructType, ArrayType, VectorType, VoidType, Type};
 use crate::types::enums::{AnyTypeEnum, BasicTypeEnum};
-use crate::values::{IntMathValue, FloatMathValue, PointerMathValue, IntValue, FloatValue, PointerValue, VectorValue};
+use crate::types::{
+    ArrayType, FloatType, FunctionType, IntType, PointerType, StructType, Type, VectorType,
+    VoidType,
+};
+use crate::values::{
+    FloatMathValue, FloatValue, IntMathValue, IntValue, PointerMathValue, PointerValue, VectorValue,
+};
+use crate::AddressSpace;
 
 // This is an ugly privacy hack so that Type can stay private to this module
 // and so that super traits using this trait will be not be implementable
@@ -152,7 +157,7 @@ impl PointerMathType for VectorType {
 }
 
 macro_rules! impl_try_from_basic_type_enum {
-    ($type_name:ident) => (
+    ($type_name:ident) => {
         impl TryFrom<BasicTypeEnum> for $type_name {
             type Error = &'static str;
 
@@ -163,7 +168,7 @@ macro_rules! impl_try_from_basic_type_enum {
                 }
             }
         }
-    )
+    };
 }
 
 impl_try_from_basic_type_enum!(ArrayType);

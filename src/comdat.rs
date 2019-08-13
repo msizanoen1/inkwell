@@ -2,10 +2,12 @@
 // https://llvm.org/doxygen/IR_2Comdat_8h_source.html
 // https://stackoverflow.com/questions/1834597/what-is-the-comdat-section-used-for
 
-use llvm_sys::comdat::{LLVMComdatSelectionKind, LLVMSetComdatSelectionKind, LLVMGetComdatSelectionKind};
+use llvm_sys::comdat::{
+    LLVMComdatSelectionKind, LLVMGetComdatSelectionKind, LLVMSetComdatSelectionKind,
+};
 use llvm_sys::prelude::LLVMComdatRef;
 
-enum_rename!{
+enum_rename! {
     /// Determines how linker conflicts are to be resolved.
     ComdatSelectionKind <=> LLVMComdatSelectionKind {
         /// The linker may choose any COMDAT.
@@ -34,17 +36,13 @@ impl Comdat {
 
     /// Gets what kind of `Comdat` this is.
     pub fn get_selection_kind(&self) -> ComdatSelectionKind {
-        let kind_ptr = unsafe {
-            LLVMGetComdatSelectionKind(self.0)
-        };
+        let kind_ptr = unsafe { LLVMGetComdatSelectionKind(self.0) };
 
         ComdatSelectionKind::new(kind_ptr)
     }
 
     /// Sets what kind of `Comdat` this should be.
     pub fn set_selection_kind(&self, kind: ComdatSelectionKind) {
-        unsafe {
-            LLVMSetComdatSelectionKind(self.0, kind.as_llvm_enum())
-        }
+        unsafe { LLVMSetComdatSelectionKind(self.0, kind.as_llvm_enum()) }
     }
 }

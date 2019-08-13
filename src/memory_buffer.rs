@@ -1,39 +1,49 @@
-use llvm_sys::core::{LLVMCreateMemoryBufferWithContentsOfFile, LLVMCreateMemoryBufferWithSTDIN, LLVMCreateMemoryBufferWithMemoryRange, LLVMCreateMemoryBufferWithMemoryRangeCopy, LLVMGetBufferStart, LLVMGetBufferSize, LLVMDisposeMemoryBuffer};
-use llvm_sys::prelude::LLVMMemoryBufferRef;
+use llvm_sys::core::{
+    LLVMCreateMemoryBufferWithContentsOfFile, LLVMCreateMemoryBufferWithMemoryRange,
+    LLVMCreateMemoryBufferWithMemoryRangeCopy, LLVMCreateMemoryBufferWithSTDIN,
+    LLVMDisposeMemoryBuffer, LLVMGetBufferSize, LLVMGetBufferStart,
+};
 use llvm_sys::object::LLVMCreateObjectFile;
+use llvm_sys::prelude::LLVMMemoryBufferRef;
 
 use crate::object_file::ObjectFile;
 use crate::support::LLVMString;
 
 use std::ffi::CString;
 use std::mem::{forget, zeroed};
+use std::os::raw::c_char;
 use std::path::Path;
 use std::ptr;
 use std::slice;
-use std::os::raw::c_char;
 
 #[derive(Debug)]
 pub struct MemoryBuffer {
-    pub(crate) memory_buffer: LLVMMemoryBufferRef
+    pub(crate) memory_buffer: LLVMMemoryBufferRef,
 }
 
 impl MemoryBuffer {
     pub(crate) fn new(memory_buffer: LLVMMemoryBufferRef) -> Self {
         assert!(!memory_buffer.is_null());
 
-        MemoryBuffer {
-            memory_buffer
-        }
+        MemoryBuffer { memory_buffer }
     }
 
     pub fn create_from_file(path: &Path) -> Result<Self, LLVMString> {
-        let path = CString::new(path.to_str().expect("Did not find a valid Unicode path string")).expect("Failed to convert to CString");
+        let path = CString::new(
+            path.to_str()
+                .expect("Did not find a valid Unicode path string"),
+        )
+        .expect("Failed to convert to CString");
         let mut memory_buffer = ptr::null_mut();
         let mut err_string = unsafe { zeroed() };
 
         let return_code = unsafe {
             // REVIEW: Unclear why this expects *const i8 instead of *const u8
-            LLVMCreateMemoryBufferWithContentsOfFile(path.as_ptr() as *const c_char, &mut memory_buffer, &mut err_string)
+            LLVMCreateMemoryBufferWithContentsOfFile(
+                path.as_ptr() as *const c_char,
+                &mut memory_buffer,
+                &mut err_string,
+            )
         };
 
         // TODO: Verify 1 is error code (LLVM can be inconsistent)
@@ -48,9 +58,8 @@ impl MemoryBuffer {
         let mut memory_buffer = ptr::null_mut();
         let mut err_string = unsafe { zeroed() };
 
-        let return_code = unsafe {
-            LLVMCreateMemoryBufferWithSTDIN(&mut memory_buffer, &mut err_string)
-        };
+        let return_code =
+            unsafe { LLVMCreateMemoryBufferWithSTDIN(&mut memory_buffer, &mut err_string) };
 
         // TODO: Verify 1 is error code (LLVM can be inconsistent)
         if return_code == 1 {
@@ -67,11 +76,17 @@ impl MemoryBuffer {
     /// leaks data to LLVM so that it doesn't have to reallocate. `create_from_memory_range_copy` may be removed
     /// in the future
     pub fn create_from_memory_range(input: &str, name: &str) -> Self {
-        let input_c_string = CString::new(input).expect("Conversion to CString failed unexpectedly");
+        let input_c_string =
+            CString::new(input).expect("Conversion to CString failed unexpectedly");
         let name_c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
         let memory_buffer = unsafe {
-            LLVMCreateMemoryBufferWithMemoryRange(input_c_string.as_ptr(), input.len(), name_c_string.as_ptr(), false as i32)
+            LLVMCreateMemoryBufferWithMemoryRange(
+                input_c_string.as_ptr(),
+                input.len(),
+                name_c_string.as_ptr(),
+                false as i32,
+            )
         };
 
         // LLVM seems to want to take ownership of input_c_string, which is why we need to forget it
@@ -89,11 +104,16 @@ impl MemoryBuffer {
     /// data to LLVM, forcing LLVM to make a copy. This function may be removed in the future in favor of
     /// `create_from_memory_range`
     pub fn create_from_memory_range_copy(input: &str, name: &str) -> Self {
-        let input_c_string = CString::new(input).expect("Conversion to CString failed unexpectedly");
+        let input_c_string =
+            CString::new(input).expect("Conversion to CString failed unexpectedly");
         let name_c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
         let memory_buffer = unsafe {
-            LLVMCreateMemoryBufferWithMemoryRangeCopy(input_c_string.as_ptr(), input.len(), name_c_string.as_ptr())
+            LLVMCreateMemoryBufferWithMemoryRangeCopy(
+                input_c_string.as_ptr(),
+                input.len(),
+                name_c_string.as_ptr(),
+            )
         };
 
         MemoryBuffer::new(memory_buffer)
@@ -110,17 +130,13 @@ impl MemoryBuffer {
 
     /// Gets the byte size of this `MemoryBuffer`.
     pub fn get_size(&self) -> usize {
-        unsafe {
-            LLVMGetBufferSize(self.memory_buffer)
-        }
+        unsafe { LLVMGetBufferSize(self.memory_buffer) }
     }
 
     /// Convert this `MemoryBuffer` into an `ObjectFile`. LLVM does not currently
     /// provide any way to determine the cause of error if conversion fails.
     pub fn create_object_file(self) -> Result<ObjectFile, ()> {
-        let object_file = unsafe {
-            LLVMCreateObjectFile(self.memory_buffer)
-        };
+        let object_file = unsafe { LLVMCreateObjectFile(self.memory_buffer) };
 
         forget(self);
 

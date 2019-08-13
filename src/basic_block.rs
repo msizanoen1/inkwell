@@ -1,15 +1,21 @@
 //! A `BasicBlock` is a container of instructions.
 
-use llvm_sys::core::{LLVMGetBasicBlockParent, LLVMGetBasicBlockTerminator, LLVMGetNextBasicBlock, LLVMInsertBasicBlock, LLVMIsABasicBlock, LLVMIsConstant, LLVMMoveBasicBlockAfter, LLVMMoveBasicBlockBefore, LLVMPrintTypeToString, LLVMPrintValueToString, LLVMTypeOf, LLVMDeleteBasicBlock, LLVMGetPreviousBasicBlock, LLVMRemoveBasicBlockFromParent, LLVMGetFirstInstruction, LLVMGetLastInstruction, LLVMGetTypeContext, LLVMBasicBlockAsValue};
 #[llvm_versions(3.9..=latest)]
 use llvm_sys::core::LLVMGetBasicBlockName;
-use llvm_sys::prelude::{LLVMValueRef, LLVMBasicBlockRef};
+use llvm_sys::core::{
+    LLVMBasicBlockAsValue, LLVMDeleteBasicBlock, LLVMGetBasicBlockParent,
+    LLVMGetBasicBlockTerminator, LLVMGetFirstInstruction, LLVMGetLastInstruction,
+    LLVMGetNextBasicBlock, LLVMGetPreviousBasicBlock, LLVMGetTypeContext, LLVMInsertBasicBlock,
+    LLVMIsABasicBlock, LLVMIsConstant, LLVMMoveBasicBlockAfter, LLVMMoveBasicBlockBefore,
+    LLVMPrintTypeToString, LLVMPrintValueToString, LLVMRemoveBasicBlockFromParent, LLVMTypeOf,
+};
+use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMValueRef};
 
 use crate::context::{Context, ContextRef};
 use crate::values::{FunctionValue, InstructionValue};
 
-use std::fmt;
 use std::ffi::{CStr, CString};
+use std::fmt;
 use std::rc::Rc;
 
 /// A `BasicBlock` is a container of instructions.
@@ -61,9 +67,7 @@ impl BasicBlock {
     /// assert!(basic_block.get_parent().is_none());
     /// ```
     pub fn get_parent(&self) -> Option<FunctionValue> {
-        let value = unsafe {
-            LLVMGetBasicBlockParent(self.basic_block)
-        };
+        let value = unsafe { LLVMGetBasicBlockParent(self.basic_block) };
 
         FunctionValue::new(value)
     }
@@ -99,9 +103,7 @@ impl BasicBlock {
             return None;
         }
 
-        let bb = unsafe {
-            LLVMGetPreviousBasicBlock(self.basic_block)
-        };
+        let bb = unsafe { LLVMGetPreviousBasicBlock(self.basic_block) };
 
         BasicBlock::new(bb)
     }
@@ -137,10 +139,8 @@ impl BasicBlock {
         if self.get_parent().is_none() {
             return None;
         }
- 
-        let bb = unsafe {
-            LLVMGetNextBasicBlock(self.basic_block)
-        };
+
+        let bb = unsafe { LLVMGetNextBasicBlock(self.basic_block) };
 
         BasicBlock::new(bb)
     }
@@ -169,9 +169,7 @@ impl BasicBlock {
     /// ```
     // REVIEW: What happens if blocks are from different scopes?
     pub fn move_before(&self, basic_block: &BasicBlock) {
-        unsafe {
-            LLVMMoveBasicBlockBefore(self.basic_block, basic_block.basic_block)
-        }
+        unsafe { LLVMMoveBasicBlockBefore(self.basic_block, basic_block.basic_block) }
     }
 
     /// Appends one `BasicBlock` after another.
@@ -198,9 +196,7 @@ impl BasicBlock {
     /// ```
     // REVIEW: What happens if blocks are from different scopes?
     pub fn move_after(&self, basic_block: &BasicBlock) {
-        unsafe {
-            LLVMMoveBasicBlockAfter(self.basic_block, basic_block.basic_block)
-        }
+        unsafe { LLVMMoveBasicBlockAfter(self.basic_block, basic_block.basic_block) }
     }
 
     /// Prepends a new `BasicBlock` before this one.
@@ -226,9 +222,7 @@ impl BasicBlock {
     pub fn prepend_basic_block(&self, name: &str) -> BasicBlock {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
-        let bb = unsafe {
-            LLVMInsertBasicBlock(self.basic_block, c_string.as_ptr())
-        };
+        let bb = unsafe { LLVMInsertBasicBlock(self.basic_block, c_string.as_ptr()) };
 
         BasicBlock::new(bb).expect("Prepending basic block should never fail")
     }
@@ -256,9 +250,7 @@ impl BasicBlock {
     /// assert_eq!(basic_block.get_first_instruction().unwrap().get_opcode(), InstructionOpcode::Return);
     /// ```
     pub fn get_first_instruction(&self) -> Option<InstructionValue> {
-        let value = unsafe {
-            LLVMGetFirstInstruction(self.basic_block)
-        };
+        let value = unsafe { LLVMGetFirstInstruction(self.basic_block) };
 
         if value.is_null() {
             return None;
@@ -290,9 +282,7 @@ impl BasicBlock {
     /// assert_eq!(basic_block.get_last_instruction().unwrap().get_opcode(), InstructionOpcode::Return);
     /// ```
     pub fn get_last_instruction(&self) -> Option<InstructionValue> {
-        let value = unsafe {
-            LLVMGetLastInstruction(self.basic_block)
-        };
+        let value = unsafe { LLVMGetLastInstruction(self.basic_block) };
 
         if value.is_null() {
             return None;
@@ -328,9 +318,7 @@ impl BasicBlock {
     // TODOC: Every BB must have a terminating instruction or else it is invalid
     // REVIEW: Unclear how this differs from get_last_instruction
     pub fn get_terminator(&self) -> Option<InstructionValue> {
-        let value = unsafe {
-            LLVMGetBasicBlockTerminator(self.basic_block)
-        };
+        let value = unsafe { LLVMGetBasicBlockTerminator(self.basic_block) };
 
         if value.is_null() {
             return None;
@@ -367,9 +355,7 @@ impl BasicBlock {
     pub fn remove_from_function(&self) {
         // This method is UB if the parent no longer exists, so we must check for parent (or encode into type system)
         if self.get_parent().is_some() {
-            unsafe {
-                LLVMRemoveBasicBlockFromParent(self.basic_block)
-            }
+            unsafe { LLVMRemoveBasicBlockFromParent(self.basic_block) }
         }
     }
 
@@ -418,9 +404,8 @@ impl BasicBlock {
     /// assert_eq!(context, *basic_block.get_context());
     /// ```
     pub fn get_context(&self) -> ContextRef {
-        let context = unsafe {
-            LLVMGetTypeContext(LLVMTypeOf(LLVMBasicBlockAsValue(self.basic_block)))
-        };
+        let context =
+            unsafe { LLVMGetTypeContext(LLVMTypeOf(LLVMBasicBlockAsValue(self.basic_block))) };
 
         // REVIEW: This probably should be somehow using the existing context Rc
         ContextRef::new(Context::new(Rc::new(context)))
@@ -446,27 +431,22 @@ impl BasicBlock {
     /// ```
     #[llvm_versions(3.9..=latest)]
     pub fn get_name(&self) -> &CStr {
-        let ptr = unsafe {
-            LLVMGetBasicBlockName(self.basic_block)
-        };
+        let ptr = unsafe { LLVMGetBasicBlockName(self.basic_block) };
 
-        unsafe {
-            CStr::from_ptr(ptr)
-        }
+        unsafe { CStr::from_ptr(ptr) }
     }
 }
 
 impl fmt::Debug for BasicBlock {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let llvm_value = unsafe {
-            CStr::from_ptr(LLVMPrintValueToString(self.basic_block as LLVMValueRef))
-        };
+        let llvm_value =
+            unsafe { CStr::from_ptr(LLVMPrintValueToString(self.basic_block as LLVMValueRef)) };
         let llvm_type = unsafe {
-            CStr::from_ptr(LLVMPrintTypeToString(LLVMTypeOf(self.basic_block as LLVMValueRef)))
+            CStr::from_ptr(LLVMPrintTypeToString(LLVMTypeOf(
+                self.basic_block as LLVMValueRef,
+            )))
         };
-        let is_const = unsafe {
-            LLVMIsConstant(self.basic_block as LLVMValueRef) == 1
-        };
+        let is_const = unsafe { LLVMIsConstant(self.basic_block as LLVMValueRef) == 1 };
 
         f.debug_struct("BasicBlock")
             .field("address", &self.basic_block)

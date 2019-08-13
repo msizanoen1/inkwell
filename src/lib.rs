@@ -22,12 +22,19 @@ pub mod support;
 #[deny(missing_docs)]
 pub mod attributes;
 #[deny(missing_docs)]
-#[cfg(not(any(feature = "llvm3-6", feature = "llvm3-7", feature = "llvm3-8", feature = "llvm3-9",
-              feature = "llvm4-0", feature = "llvm5-0", feature = "llvm6-0")))]
-pub mod comdat;
-#[deny(missing_docs)]
 pub mod basic_block;
 pub mod builder;
+#[deny(missing_docs)]
+#[cfg(not(any(
+    feature = "llvm3-6",
+    feature = "llvm3-7",
+    feature = "llvm3-8",
+    feature = "llvm3-9",
+    feature = "llvm4-0",
+    feature = "llvm5-0",
+    feature = "llvm6-0"
+)))]
+pub mod comdat;
 #[deny(missing_docs)]
 pub mod context;
 pub mod data_layout;
@@ -41,7 +48,10 @@ pub mod targets;
 pub mod types;
 pub mod values;
 
-use llvm_sys::{LLVMIntPredicate, LLVMRealPredicate, LLVMVisibility, LLVMThreadLocalMode, LLVMDLLStorageClass, LLVMAtomicOrdering};
+use llvm_sys::{
+    LLVMAtomicOrdering, LLVMDLLStorageClass, LLVMIntPredicate, LLVMRealPredicate,
+    LLVMThreadLocalMode, LLVMVisibility,
+};
 
 use std::convert::TryFrom;
 
@@ -74,7 +84,7 @@ macro_rules! assert_unique_used_features {
     }
 }
 
-assert_unique_used_features!{"llvm3-6", "llvm3-7", "llvm3-8", "llvm3-9", "llvm4-0", "llvm5-0", "llvm6-0", "llvm7-0", "llvm8-0"}
+assert_unique_used_features! {"llvm3-6", "llvm3-7", "llvm3-8", "llvm3-9", "llvm4-0", "llvm5-0", "llvm6-0", "llvm7-0", "llvm8-0"}
 
 /// Defines the address space in which a global will be inserted.
 ///
@@ -83,10 +93,10 @@ assert_unique_used_features!{"llvm3-6", "llvm3-7", "llvm3-8", "llvm3-9", "llvm4-
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum AddressSpace {
     Generic = 0,
-    Global  = 1,
-    Shared  = 3,
-    Const   = 4,
-    Local   = 5,
+    Global = 1,
+    Shared = 3,
+    Const = 4,
+    Local = 5,
 }
 
 impl TryFrom<u32> for AddressSpace {
@@ -105,7 +115,7 @@ impl TryFrom<u32> for AddressSpace {
 }
 
 // REVIEW: Maybe this belongs in some sort of prelude?
-enum_rename!{
+enum_rename! {
     /// This enum defines how to compare a `left` and `right` `IntValue`.
     IntPredicate <=> LLVMIntPredicate {
         /// Equal
@@ -132,7 +142,7 @@ enum_rename!{
 }
 
 // REVIEW: Maybe this belongs in some sort of prelude?
-enum_rename!{
+enum_rename! {
     /// Defines how to compare a `left` and `right` `FloatValue`.
     FloatPredicate <=> LLVMRealPredicate {
         /// Returns true if `left` == `right` and neither are NaN
@@ -171,7 +181,7 @@ enum_rename!{
 }
 
 // REVIEW: Maybe this belongs in some sort of prelude?
-enum_rename!{
+enum_rename! {
     AtomicOrdering <=> LLVMAtomicOrdering {
         NotAtomic <=> LLVMAtomicOrderingNotAtomic,
         Unordered <=> LLVMAtomicOrderingUnordered,
@@ -190,10 +200,10 @@ enum_rename!{
 #[repr(u32)]
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum OptimizationLevel {
-    None       = 0,
-    Less       = 1,
-    Default    = 2,
-    Aggressive = 3
+    None = 0,
+    Less = 1,
+    Default = 2,
+    Aggressive = 3,
 }
 
 impl Default for OptimizationLevel {
@@ -203,7 +213,7 @@ impl Default for OptimizationLevel {
     }
 }
 
-enum_rename!{
+enum_rename! {
     GlobalVisibility <=> LLVMVisibility {
         Default <=> LLVMDefaultVisibility,
         Hidden <=> LLVMHiddenVisibility,
@@ -229,17 +239,25 @@ pub enum ThreadLocalMode {
 impl ThreadLocalMode {
     pub(crate) fn new(thread_local_mode: LLVMThreadLocalMode) -> Option<Self> {
         match thread_local_mode {
-            LLVMThreadLocalMode::LLVMGeneralDynamicTLSModel => Some(ThreadLocalMode::GeneralDynamicTLSModel),
-            LLVMThreadLocalMode::LLVMLocalDynamicTLSModel => Some(ThreadLocalMode::LocalDynamicTLSModel),
-            LLVMThreadLocalMode::LLVMInitialExecTLSModel => Some(ThreadLocalMode::InitialExecTLSModel),
+            LLVMThreadLocalMode::LLVMGeneralDynamicTLSModel => {
+                Some(ThreadLocalMode::GeneralDynamicTLSModel)
+            }
+            LLVMThreadLocalMode::LLVMLocalDynamicTLSModel => {
+                Some(ThreadLocalMode::LocalDynamicTLSModel)
+            }
+            LLVMThreadLocalMode::LLVMInitialExecTLSModel => {
+                Some(ThreadLocalMode::InitialExecTLSModel)
+            }
             LLVMThreadLocalMode::LLVMLocalExecTLSModel => Some(ThreadLocalMode::LocalExecTLSModel),
-            LLVMThreadLocalMode::LLVMNotThreadLocal => None
+            LLVMThreadLocalMode::LLVMNotThreadLocal => None,
         }
     }
 
     pub(crate) fn as_llvm_mode(&self) -> LLVMThreadLocalMode {
         match *self {
-            ThreadLocalMode::GeneralDynamicTLSModel => LLVMThreadLocalMode::LLVMGeneralDynamicTLSModel,
+            ThreadLocalMode::GeneralDynamicTLSModel => {
+                LLVMThreadLocalMode::LLVMGeneralDynamicTLSModel
+            }
             ThreadLocalMode::LocalDynamicTLSModel => LLVMThreadLocalMode::LLVMLocalDynamicTLSModel,
             ThreadLocalMode::InitialExecTLSModel => LLVMThreadLocalMode::LLVMInitialExecTLSModel,
             ThreadLocalMode::LocalExecTLSModel => LLVMThreadLocalMode::LLVMLocalExecTLSModel,

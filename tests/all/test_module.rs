@@ -1,14 +1,14 @@
 extern crate inkwell;
 
-use self::inkwell::OptimizationLevel;
 use self::inkwell::context::Context;
 use self::inkwell::memory_buffer::MemoryBuffer;
 use self::inkwell::module::Module;
 use self::inkwell::targets::Target;
+use self::inkwell::OptimizationLevel;
 
 use std::env::temp_dir;
 use std::ffi::CString;
-use std::fs::{File, remove_file};
+use std::fs::{remove_file, File};
 use std::io::Read;
 use std::path::Path;
 use std::str::from_utf8;
@@ -30,7 +30,8 @@ fn test_write_bitcode_to_path() {
     let mut contents = Vec::new();
     let mut file = File::open(&path).expect("Could not open temp file");
 
-    file.read_to_end(&mut contents).expect("Unable to verify written file");
+    file.read_to_end(&mut contents)
+        .expect("Unable to verify written file");
 
     assert!(!contents.is_empty());
 
@@ -118,7 +119,10 @@ fn test_write_and_load_memory_buffer() {
 
     let module2 = context.create_module_from_ir(memory_buffer).unwrap();
 
-    assert_eq!(module2.get_function("my_fn").unwrap().print_to_string(), function.print_to_string());
+    assert_eq!(
+        module2.get_function("my_fn").unwrap().print_to_string(),
+        function.print_to_string()
+    );
 
     let memory_buffer2 = module.write_bitcode_to_memory();
     let object_file = memory_buffer2.create_object_file();
@@ -132,7 +136,10 @@ fn test_garbage_ir_fails_create_module_from_ir() {
     let memory_buffer = MemoryBuffer::create_from_memory_range("garbage ir data", "my_ir");
 
     assert_eq!(memory_buffer.get_size(), 15);
-    assert_eq!(from_utf8(memory_buffer.as_slice()).unwrap(), "garbage ir data");
+    assert_eq!(
+        from_utf8(memory_buffer.as_slice()).unwrap(),
+        "garbage ir data"
+    );
     assert!(context.create_module_from_ir(memory_buffer).is_err());
 }
 
@@ -142,7 +149,10 @@ fn test_garbage_ir_fails_create_module_from_ir_copy() {
     let memory_buffer = MemoryBuffer::create_from_memory_range_copy("garbage ir data", "my_ir");
 
     assert_eq!(memory_buffer.get_size(), 15);
-    assert_eq!(from_utf8(memory_buffer.as_slice()).unwrap(), "garbage ir data");
+    assert_eq!(
+        from_utf8(memory_buffer.as_slice()).unwrap(),
+        "garbage ir data"
+    );
     assert!(context.create_module_from_ir(memory_buffer).is_err());
 }
 
@@ -189,7 +199,9 @@ fn test_owned_module_dropped_ee_and_context() {
         let context = Context::create();
         let module = context.create_module("my_mod");
 
-        module.create_jit_execution_engine(OptimizationLevel::None).unwrap();
+        module
+            .create_jit_execution_engine(OptimizationLevel::None)
+            .unwrap();
         module
     };
 
@@ -309,7 +321,10 @@ fn test_print_to_file() {
 
     let bad_path = Path::new("/tmp/some/silly/path/that/sure/doesn't/exist");
 
-    assert_eq!(*module.print_to_file(bad_path).unwrap_err(), *CString::new("No such file or directory").unwrap());
+    assert_eq!(
+        *module.print_to_file(bad_path).unwrap_err(),
+        *CString::new("No such file or directory").unwrap()
+    );
 
     let mut temp_path = temp_dir();
 
@@ -330,9 +345,19 @@ fn test_get_set_target() {
     assert_eq!(*module.get_name(), *CString::new("mod").unwrap());
     assert!(module.get_target().is_none());
 
-    #[cfg(not(any(feature = "llvm3-6", feature = "llvm3-7", feature = "llvm3-8", feature = "llvm3-9",
-                  feature = "llvm4-0", feature = "llvm5-0", feature = "llvm6-0")))]
-    assert_eq!(*module.get_source_file_name(), *CString::new("mod").unwrap());
+    #[cfg(not(any(
+        feature = "llvm3-6",
+        feature = "llvm3-7",
+        feature = "llvm3-8",
+        feature = "llvm3-9",
+        feature = "llvm4-0",
+        feature = "llvm5-0",
+        feature = "llvm6-0"
+    )))]
+    assert_eq!(
+        *module.get_source_file_name(),
+        *CString::new("mod").unwrap()
+    );
 
     #[cfg(not(any(feature = "llvm3-6", feature = "llvm3-7", feature = "llvm3-8")))]
     module.set_name("mod2");
@@ -342,12 +367,22 @@ fn test_get_set_target() {
     assert_eq!(*module.get_name(), *CString::new("mod2").unwrap());
     assert_eq!(module.get_target().unwrap(), target);
 
-    #[cfg(not(any(feature = "llvm3-6", feature = "llvm3-7", feature = "llvm3-8", feature = "llvm3-9",
-                  feature = "llvm4-0", feature = "llvm5-0", feature = "llvm6-0")))]
+    #[cfg(not(any(
+        feature = "llvm3-6",
+        feature = "llvm3-7",
+        feature = "llvm3-8",
+        feature = "llvm3-9",
+        feature = "llvm4-0",
+        feature = "llvm5-0",
+        feature = "llvm6-0"
+    )))]
     {
         module.set_source_file_name("foo.rs");
 
-        assert_eq!(*module.get_source_file_name(), *CString::new("foo.rs").unwrap());
+        assert_eq!(
+            *module.get_source_file_name(),
+            *CString::new("foo.rs").unwrap()
+        );
         assert_eq!(*module.get_name(), *CString::new("mod2").unwrap());
     }
 }
@@ -386,7 +421,9 @@ fn test_linking_modules() {
     // fn_val2 is no longer the same instance of f2
     assert_ne!(module.get_function("f2"), Some(fn_val2));
 
-    let _execution_engine = module.create_jit_execution_engine(OptimizationLevel::None).expect("Could not create Execution Engine");
+    let _execution_engine = module
+        .create_jit_execution_engine(OptimizationLevel::None)
+        .expect("Could not create Execution Engine");
     let module4 = context.create_module("mod4");
 
     // EE owned module links in unowned (empty) module
@@ -402,9 +439,15 @@ fn test_linking_modules() {
     // EE owned module links in unowned module which has
     // another definition for the same funciton name, "f2"
     #[cfg(feature = "llvm3-6")] // Likely a LLVM bug that no error message is produced in 3-6
-    assert_eq!(*module.link_in_module(module5).unwrap_err(), *CString::new("").unwrap());
+    assert_eq!(
+        *module.link_in_module(module5).unwrap_err(),
+        *CString::new("").unwrap()
+    );
     #[cfg(not(feature = "llvm3-6"))]
-    assert_eq!(*module.link_in_module(module5).unwrap_err(), *CString::new("Linking globals named \'f2\': symbol multiply defined!").unwrap());
+    assert_eq!(
+        *module.link_in_module(module5).unwrap_err(),
+        *CString::new("Linking globals named \'f2\': symbol multiply defined!").unwrap()
+    );
 
     let module6 = context.create_module("mod5");
     let fn_val4 = module6.add_function("f4", fn_type, None);
@@ -413,7 +456,9 @@ fn test_linking_modules() {
     builder.position_at_end(&basic_block4);
     builder.build_return(None);
 
-    let execution_engine2 = module6.create_jit_execution_engine(OptimizationLevel::None).expect("Could not create Execution Engine");
+    let execution_engine2 = module6
+        .create_jit_execution_engine(OptimizationLevel::None)
+        .expect("Could not create Execution Engine");
 
     // EE owned module links in EE owned module
     assert!(module.link_in_module(module6).is_ok());
@@ -430,8 +475,15 @@ fn test_linking_modules() {
 
 #[test]
 fn test_metadata_flags() {
-    #[cfg(not(any(feature = "llvm3-6", feature = "llvm3-7", feature = "llvm3-8", feature = "llvm3-9",
-                  feature = "llvm4-0", feature = "llvm5-0", feature = "llvm6-0")))]
+    #[cfg(not(any(
+        feature = "llvm3-6",
+        feature = "llvm3-7",
+        feature = "llvm3-8",
+        feature = "llvm3-9",
+        feature = "llvm4-0",
+        feature = "llvm5-0",
+        feature = "llvm6-0"
+    )))]
     {
         let context = Context::create();
         let module = context.create_module("my_module");
@@ -481,19 +533,27 @@ fn test_double_ee_from_same_module() {
     builder.position_at_end(&basic_block);
     builder.build_return(None);
 
-    module.create_execution_engine().expect("Could not create Execution Engine");
+    module
+        .create_execution_engine()
+        .expect("Could not create Execution Engine");
 
     assert!(module.create_execution_engine().is_err());
 
     let module2 = module.clone();
 
-    module2.create_jit_execution_engine(OptimizationLevel::None).expect("Could not create Execution Engine");
+    module2
+        .create_jit_execution_engine(OptimizationLevel::None)
+        .expect("Could not create Execution Engine");
 
-    assert!(module.create_jit_execution_engine(OptimizationLevel::None).is_err());
+    assert!(module
+        .create_jit_execution_engine(OptimizationLevel::None)
+        .is_err());
 
     let module3 = module.clone();
 
-    module3.create_interpreter_execution_engine().expect("Could not create Execution Engine");
+    module3
+        .create_interpreter_execution_engine()
+        .expect("Could not create Execution Engine");
 
     assert!(module.create_interpreter_execution_engine().is_err());
 }

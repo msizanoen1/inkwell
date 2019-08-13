@@ -1,8 +1,8 @@
 extern crate inkwell;
 
-use self::inkwell::AddressSpace;
 use self::inkwell::context::Context;
 use self::inkwell::types::{IntType, StructType};
+use self::inkwell::AddressSpace;
 
 #[test]
 fn test_no_context_double_free() {

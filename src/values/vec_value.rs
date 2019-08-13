@@ -1,12 +1,16 @@
-use llvm_sys::core::{LLVMIsAConstantVector, LLVMIsAConstantDataVector, LLVMConstInsertElement, LLVMConstExtractElement, LLVMIsConstantString, LLVMConstString, LLVMGetElementAsConstant, LLVMGetAsString, LLVMConstSelect, LLVMConstShuffleVector};
+use llvm_sys::core::{
+    LLVMConstExtractElement, LLVMConstInsertElement, LLVMConstSelect, LLVMConstShuffleVector,
+    LLVMConstString, LLVMGetAsString, LLVMGetElementAsConstant, LLVMIsAConstantDataVector,
+    LLVMIsAConstantVector, LLVMIsConstantString,
+};
 use llvm_sys::prelude::LLVMValueRef;
 
 use std::ffi::CStr;
 
 use crate::support::LLVMString;
-use crate::types::{VectorType};
+use crate::types::VectorType;
 use crate::values::traits::AsValueRef;
-use crate::values::{BasicValueEnum, BasicValue, InstructionValue, Value, IntValue, MetadataValue};
+use crate::values::{BasicValue, BasicValueEnum, InstructionValue, IntValue, MetadataValue, Value};
 use std::os::raw::c_char;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -19,7 +23,7 @@ impl VectorValue {
         assert!(!vector_value.is_null());
 
         VectorValue {
-            vec_value: Value::new(vector_value)
+            vec_value: Value::new(vector_value),
         }
     }
 
@@ -42,15 +46,11 @@ impl VectorValue {
     }
 
     pub fn is_constant_vector(&self) -> bool {
-        unsafe {
-            !LLVMIsAConstantVector(self.as_value_ref()).is_null()
-        }
+        unsafe { !LLVMIsAConstantVector(self.as_value_ref()).is_null() }
     }
 
     pub fn is_constant_data_vector(&self) -> bool {
-        unsafe {
-            !LLVMIsAConstantDataVector(self.as_value_ref()).is_null()
-        }
+        unsafe { !LLVMIsAConstantDataVector(self.as_value_ref()).is_null() }
     }
 
     pub fn print_to_string(&self) -> LLVMString {
@@ -86,17 +86,23 @@ impl VectorValue {
     }
 
     pub fn const_extract_element(&self, index: IntValue) -> BasicValueEnum {
-        let value = unsafe {
-            LLVMConstExtractElement(self.as_value_ref(), index.as_value_ref())
-        };
+        let value = unsafe { LLVMConstExtractElement(self.as_value_ref(), index.as_value_ref()) };
 
         BasicValueEnum::new(value)
     }
 
     // SubTypes: value should really be T in self: VectorValue<T> I think
-    pub fn const_insert_element<BV: BasicValue>(&self, index: IntValue, value: BV) -> BasicValueEnum {
+    pub fn const_insert_element<BV: BasicValue>(
+        &self,
+        index: IntValue,
+        value: BV,
+    ) -> BasicValueEnum {
         let value = unsafe {
-            LLVMConstInsertElement(self.as_value_ref(), value.as_value_ref(), index.as_value_ref())
+            LLVMConstInsertElement(
+                self.as_value_ref(),
+                value.as_value_ref(),
+                index.as_value_ref(),
+            )
         };
 
         BasicValueEnum::new(value)
@@ -132,7 +138,11 @@ impl VectorValue {
     // SubTypes: Should return VectorValue<IntValue<i8>>
     pub fn const_string(string: &str, null_terminated: bool) -> Self {
         let ptr = unsafe {
-            LLVMConstString(string.as_ptr() as *const c_char, string.len() as u32, !null_terminated as i32)
+            LLVMConstString(
+                string.as_ptr() as *const c_char,
+                string.len() as u32,
+                !null_terminated as i32,
+            )
         };
 
         VectorValue::new(ptr)
@@ -151,9 +161,7 @@ impl VectorValue {
     /// ```
     // SubTypes: Impl only for VectorValue<IntValue<i8>>
     pub fn is_const_string(&self) -> bool {
-        unsafe {
-            LLVMIsConstantString(self.as_value_ref()) == 1
-        }
+        unsafe { LLVMIsConstantString(self.as_value_ref()) == 1 }
     }
 
     // SubTypes: Impl only for VectorValue<IntValue<i8>>
@@ -161,21 +169,15 @@ impl VectorValue {
         // REVIEW: Maybe need to check is_const_string?
 
         let mut len = 0;
-        let ptr = unsafe {
-            LLVMGetAsString(self.as_value_ref(), &mut len)
-        };
+        let ptr = unsafe { LLVMGetAsString(self.as_value_ref(), &mut len) };
 
-        unsafe {
-            CStr::from_ptr(ptr)
-        }
+        unsafe { CStr::from_ptr(ptr) }
     }
 
     // TODOC: Value seems to be zero initialized if index out of bounds
     // SubType: VectorValue<BV> -> BV
     pub fn get_element_as_constant(&self, index: u32) -> BasicValueEnum {
-        let ptr = unsafe {
-            LLVMGetElementAsConstant(self.as_value_ref(), index)
-        };
+        let ptr = unsafe { LLVMGetElementAsConstant(self.as_value_ref(), index) };
 
         BasicValueEnum::new(ptr)
     }
@@ -183,7 +185,11 @@ impl VectorValue {
     // SubTypes: self can only be VectoValue<IntValue<bool>>
     pub fn const_select<BV: BasicValue>(&self, then: BV, else_: BV) -> BasicValueEnum {
         let value = unsafe {
-            LLVMConstSelect(self.as_value_ref(), then.as_value_ref(), else_.as_value_ref())
+            LLVMConstSelect(
+                self.as_value_ref(),
+                then.as_value_ref(),
+                else_.as_value_ref(),
+            )
         };
 
         BasicValueEnum::new(value)
@@ -192,7 +198,11 @@ impl VectorValue {
     // SubTypes: <V: VectorValue<T, Const>> self: V, right: V, mask: V -> V
     pub fn const_shuffle_vector(&self, right: VectorValue, mask: VectorValue) -> VectorValue {
         let value = unsafe {
-            LLVMConstShuffleVector(self.as_value_ref(), right.as_value_ref(), mask.as_value_ref())
+            LLVMConstShuffleVector(
+                self.as_value_ref(),
+                right.as_value_ref(),
+                mask.as_value_ref(),
+            )
         };
 
         VectorValue::new(value)

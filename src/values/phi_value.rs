@@ -1,4 +1,6 @@
-use llvm_sys::core::{LLVMAddIncoming, LLVMCountIncoming, LLVMGetIncomingBlock, LLVMGetIncomingValue};
+use llvm_sys::core::{
+    LLVMAddIncoming, LLVMCountIncoming, LLVMGetIncomingBlock, LLVMGetIncomingValue,
+};
 use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMValueRef};
 
 use std::ffi::CStr;
@@ -13,7 +15,7 @@ use crate::values::{BasicValue, BasicValueEnum, InstructionValue, Value};
 /// the Phi's containing basic block.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct PhiValue {
-    phi_value: Value
+    phi_value: Value,
 }
 
 impl PhiValue {
@@ -27,20 +29,24 @@ impl PhiValue {
 
     pub fn add_incoming(&self, incoming: &[(&dyn BasicValue, &BasicBlock)]) {
         let (mut values, mut basic_blocks): (Vec<LLVMValueRef>, Vec<LLVMBasicBlockRef>) = {
-            incoming.iter()
-                    .map(|&(v, bb)| (v.as_value_ref(), bb.basic_block))
-                    .unzip()
+            incoming
+                .iter()
+                .map(|&(v, bb)| (v.as_value_ref(), bb.basic_block))
+                .unzip()
         };
 
         unsafe {
-            LLVMAddIncoming(self.as_value_ref(), values.as_mut_ptr(), basic_blocks.as_mut_ptr(), incoming.len() as u32);
+            LLVMAddIncoming(
+                self.as_value_ref(),
+                values.as_mut_ptr(),
+                basic_blocks.as_mut_ptr(),
+                incoming.len() as u32,
+            );
         }
     }
 
     pub fn count_incoming(&self) -> u32 {
-        unsafe {
-            LLVMCountIncoming(self.as_value_ref())
-        }
+        unsafe { LLVMCountIncoming(self.as_value_ref()) }
     }
 
     pub fn get_incoming(&self, index: u32) -> Option<(BasicValueEnum, BasicBlock)> {
@@ -48,14 +54,13 @@ impl PhiValue {
             return None;
         }
 
-        let basic_block = unsafe {
-            LLVMGetIncomingBlock(self.as_value_ref(), index)
-        };
-        let value = unsafe {
-            LLVMGetIncomingValue(self.as_value_ref(), index)
-        };
+        let basic_block = unsafe { LLVMGetIncomingBlock(self.as_value_ref(), index) };
+        let value = unsafe { LLVMGetIncomingValue(self.as_value_ref(), index) };
 
-        Some((BasicValueEnum::new(value), BasicBlock::new(basic_block).expect("Invalid BasicBlock")))
+        Some((
+            BasicValueEnum::new(value),
+            BasicBlock::new(basic_block).expect("Invalid BasicBlock"),
+        ))
     }
 
     pub fn get_name(&self) -> &CStr {
@@ -85,7 +90,9 @@ impl PhiValue {
 
     // SubType: -> InstructionValue<Phi>
     pub fn as_instruction(&self) -> InstructionValue {
-        self.phi_value.as_instruction().expect("PhiValue should always be a Phi InstructionValue")
+        self.phi_value
+            .as_instruction()
+            .expect("PhiValue should always be a Phi InstructionValue")
     }
 
     pub fn replace_all_uses_with(&self, other: &PhiValue) {

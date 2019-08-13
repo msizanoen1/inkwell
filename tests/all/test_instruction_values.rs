@@ -1,8 +1,8 @@
 extern crate inkwell;
 
-use self::inkwell::{AddressSpace, IntPredicate, FloatPredicate};
 use self::inkwell::context::Context;
 use self::inkwell::values::{BasicValue, InstructionOpcode::*};
+use self::inkwell::{AddressSpace, FloatPredicate, IntPredicate};
 
 #[test]
 fn test_operands() {
@@ -51,7 +51,14 @@ fn test_operands() {
     assert!(free_operand0.is_pointer_value()); // (implictly casted) i8* arg1
     assert!(free_operand1.is_pointer_value()); // Free function ptr
     assert_eq!(free_operand0_instruction.get_opcode(), BitCast);
-    assert_eq!(free_operand0_instruction.get_operand(0).unwrap().left().unwrap(), arg1);
+    assert_eq!(
+        free_operand0_instruction
+            .get_operand(0)
+            .unwrap()
+            .left()
+            .unwrap(),
+        arg1
+    );
     assert!(free_operand0_instruction.get_operand(1).is_none());
     assert!(free_operand0_instruction.get_operand(2).is_none());
     assert!(free_instruction.get_operand(2).is_none());
@@ -154,7 +161,10 @@ fn test_basic_block_operand() {
 
     let bb_operand_use = branch_instruction.get_operand_use(0).unwrap();
 
-    assert_eq!(bb_operand_use.get_used_value().right().unwrap(), basic_block2);
+    assert_eq!(
+        bb_operand_use.get_used_value().right().unwrap(),
+        basic_block2
+    );
 
     builder.position_at_end(&basic_block2);
     builder.build_return(None);
@@ -184,12 +194,17 @@ fn test_get_next_use() {
     // f32_val constant appears twice, so there are two uses (first, next)
     let first_use = f32_val.get_first_use().unwrap();
 
-    assert_eq!(first_use.get_user(), add_pi1.as_instruction_value().unwrap());
-    assert_eq!(first_use.get_next_use().map(|x| x.get_user()), add_pi0.as_instruction_value());
+    assert_eq!(
+        first_use.get_user(),
+        add_pi1.as_instruction_value().unwrap()
+    );
+    assert_eq!(
+        first_use.get_next_use().map(|x| x.get_user()),
+        add_pi0.as_instruction_value()
+    );
     assert!(arg1.get_first_use().is_some());
     assert!(module.verify().is_ok());
 }
-
 
 #[test]
 fn test_instructions() {
@@ -230,19 +245,28 @@ fn test_instructions() {
     assert_eq!(ptr.as_instruction().unwrap().get_opcode(), IntToPtr);
     assert_eq!(icmp.as_instruction().unwrap().get_opcode(), ICmp);
     assert_eq!(ptr.as_instruction().unwrap().get_icmp_predicate(), None);
-    assert_eq!(icmp.as_instruction().unwrap().get_icmp_predicate().unwrap(), IntPredicate::EQ);
+    assert_eq!(
+        icmp.as_instruction().unwrap().get_icmp_predicate().unwrap(),
+        IntPredicate::EQ
+    );
     assert_eq!(f32_sum.as_instruction().unwrap().get_opcode(), FAdd);
     assert_eq!(fcmp.as_instruction().unwrap().get_opcode(), FCmp);
     assert_eq!(f32_sum.as_instruction().unwrap().get_fcmp_predicate(), None);
     assert_eq!(icmp.as_instruction().unwrap().get_fcmp_predicate(), None);
-    assert_eq!(fcmp.as_instruction().unwrap().get_fcmp_predicate().unwrap(), FloatPredicate::OEQ);
+    assert_eq!(
+        fcmp.as_instruction().unwrap().get_fcmp_predicate().unwrap(),
+        FloatPredicate::OEQ
+    );
     assert_eq!(free_instruction.get_opcode(), Call);
     assert_eq!(return_instruction.get_opcode(), Return);
 
     // test instruction cloning
     let instruction_clone = return_instruction.clone();
 
-    assert_eq!(instruction_clone.get_opcode(), return_instruction.get_opcode());
+    assert_eq!(
+        instruction_clone.get_opcode(),
+        return_instruction.get_opcode()
+    );
     assert_ne!(instruction_clone, return_instruction);
 
     // test copying

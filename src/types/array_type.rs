@@ -1,12 +1,12 @@
 use llvm_sys::core::{LLVMConstArray, LLVMGetArrayLength};
 use llvm_sys::prelude::{LLVMTypeRef, LLVMValueRef};
 
-use crate::AddressSpace;
 use crate::context::ContextRef;
 use crate::support::LLVMString;
 use crate::types::traits::AsTypeRef;
-use crate::types::{Type, BasicTypeEnum, PointerType, FunctionType};
-use crate::values::{AsValueRef, ArrayValue, IntValue};
+use crate::types::{BasicTypeEnum, FunctionType, PointerType, Type};
+use crate::values::{ArrayValue, AsValueRef, IntValue};
+use crate::AddressSpace;
 
 /// An `ArrayType` is the type of contiguous constants or variables.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -56,7 +56,7 @@ impl ArrayType {
     /// ```
     pub fn size_of(&self) -> Option<IntValue> {
         if self.is_sized() {
-            return Some(self.array_type.size_of())
+            return Some(self.array_type.size_of());
         }
 
         None
@@ -164,12 +164,9 @@ impl ArrayType {
     /// assert!(f32_array_array.is_const());
     /// ```
     pub fn const_array(&self, values: &[ArrayValue]) -> ArrayValue {
-        let mut values: Vec<LLVMValueRef> = values.iter()
-                                                  .map(|val| val.as_value_ref())
-                                                  .collect();
-        let value = unsafe {
-            LLVMConstArray(self.as_type_ref(), values.as_mut_ptr(), values.len() as u32)
-        };
+        let mut values: Vec<LLVMValueRef> = values.iter().map(|val| val.as_value_ref()).collect();
+        let value =
+            unsafe { LLVMConstArray(self.as_type_ref(), values.as_mut_ptr(), values.len() as u32) };
 
         ArrayValue::new(value)
     }
@@ -204,9 +201,7 @@ impl ArrayType {
     /// assert_eq!(i8_array_type.len(), 3);
     /// ```
     pub fn len(&self) -> u32 {
-        unsafe {
-            LLVMGetArrayLength(self.as_type_ref())
-        }
+        unsafe { LLVMGetArrayLength(self.as_type_ref()) }
     }
 
     /// Prints the definition of a `ArrayType` to a `LLVMString`.
@@ -255,7 +250,6 @@ impl ArrayType {
     pub fn get_element_type(&self) -> BasicTypeEnum {
         self.array_type.get_element_type().to_basic_type_enum()
     }
-
 }
 
 impl AsTypeRef for ArrayType {

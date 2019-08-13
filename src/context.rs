@@ -1,11 +1,21 @@
 //! A `Context` is an opaque owner and manager of core global data.
 
-use llvm_sys::core::{LLVMAppendBasicBlockInContext, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMFP128TypeInContext, LLVMInsertBasicBlockInContext, LLVMInt16TypeInContext, LLVMInt1TypeInContext, LLVMInt32TypeInContext, LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMIntTypeInContext, LLVMModuleCreateWithNameInContext, LLVMStructCreateNamed, LLVMStructTypeInContext, LLVMVoidTypeInContext, LLVMHalfTypeInContext, LLVMGetGlobalContext, LLVMPPCFP128TypeInContext, LLVMConstStructInContext, LLVMMDNodeInContext, LLVMMDStringInContext, LLVMGetMDKindIDInContext, LLVMX86FP80TypeInContext, LLVMConstStringInContext, LLVMContextSetDiagnosticHandler};
+use libc::c_void;
+use llvm_sys::core::{
+    LLVMAppendBasicBlockInContext, LLVMConstStringInContext, LLVMConstStructInContext,
+    LLVMContextCreate, LLVMContextDispose, LLVMContextSetDiagnosticHandler,
+    LLVMCreateBuilderInContext, LLVMDoubleTypeInContext, LLVMFP128TypeInContext,
+    LLVMFloatTypeInContext, LLVMGetGlobalContext, LLVMGetMDKindIDInContext, LLVMHalfTypeInContext,
+    LLVMInsertBasicBlockInContext, LLVMInt16TypeInContext, LLVMInt1TypeInContext,
+    LLVMInt32TypeInContext, LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMIntTypeInContext,
+    LLVMMDNodeInContext, LLVMMDStringInContext, LLVMModuleCreateWithNameInContext,
+    LLVMPPCFP128TypeInContext, LLVMStructCreateNamed, LLVMStructTypeInContext,
+    LLVMVoidTypeInContext, LLVMX86FP80TypeInContext,
+};
 #[llvm_versions(4.0..=latest)]
 use llvm_sys::core::{LLVMCreateEnumAttribute, LLVMCreateStringAttribute};
-use llvm_sys::prelude::{LLVMContextRef, LLVMTypeRef, LLVMValueRef, LLVMDiagnosticInfoRef};
 use llvm_sys::ir_reader::LLVMParseIRInContext;
-use libc::c_void;
+use llvm_sys::prelude::{LLVMContextRef, LLVMDiagnosticInfoRef, LLVMTypeRef, LLVMValueRef};
 
 #[llvm_versions(4.0..=latest)]
 use crate::attributes::Attribute;
@@ -14,15 +24,17 @@ use crate::builder::Builder;
 use crate::memory_buffer::MemoryBuffer;
 use crate::module::Module;
 use crate::support::LLVMString;
-use crate::types::{BasicTypeEnum, FloatType, IntType, StructType, VoidType, AsTypeRef};
-use crate::values::{AsValueRef, FunctionValue, StructValue, MetadataValue, BasicValueEnum, VectorValue};
+use crate::types::{AsTypeRef, BasicTypeEnum, FloatType, IntType, StructType, VoidType};
+use crate::values::{
+    AsValueRef, BasicValueEnum, FunctionValue, MetadataValue, StructValue, VectorValue,
+};
 
 use std::ffi::CString;
 use std::mem::forget;
 use std::ops::Deref;
+use std::os::raw::c_char;
 use std::ptr;
 use std::rc::Rc;
-use std::os::raw::c_char;
 
 /// A `Context` is a container for all LLVM entities including `Module`s.
 ///
@@ -44,9 +56,7 @@ impl Context {
     pub(crate) fn new(context: Rc<LLVMContextRef>) -> Self {
         assert!(!context.is_null());
 
-        Context {
-            context,
-        }
+        Context { context }
     }
 
     /// Creates a new `Context`.
@@ -59,9 +69,7 @@ impl Context {
     /// let context = Context::create();
     /// ```
     pub fn create() -> Self {
-        let context = unsafe {
-            LLVMContextCreate()
-        };
+        let context = unsafe { LLVMContextCreate() };
 
         Context::new(Rc::new(context))
     }
@@ -76,9 +84,7 @@ impl Context {
     /// let context = Context::get_global();
     /// ```
     pub fn get_global() -> ContextRef {
-        let context = unsafe {
-            LLVMGetGlobalContext()
-        };
+        let context = unsafe { LLVMGetGlobalContext() };
 
         ContextRef::new(Context::new(Rc::new(context)))
     }
@@ -94,9 +100,7 @@ impl Context {
     /// let builder = context.create_builder();
     /// ```
     pub fn create_builder(&self) -> Builder {
-        let builder = unsafe {
-            LLVMCreateBuilderInContext(*self.context)
-        };
+        let builder = unsafe { LLVMCreateBuilderInContext(*self.context) };
 
         Builder::new(builder)
     }
@@ -114,9 +118,7 @@ impl Context {
     pub fn create_module(&self, name: &str) -> Module {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
-        let module = unsafe {
-            LLVMModuleCreateWithNameInContext(c_string.as_ptr(), *self.context)
-        };
+        let module = unsafe { LLVMModuleCreateWithNameInContext(c_string.as_ptr(), *self.context) };
 
         Module::new(module, Some(&self))
     }
@@ -152,7 +154,12 @@ impl Context {
         let mut err_str = ptr::null_mut();
 
         let code = unsafe {
-            LLVMParseIRInContext(*self.context, memory_buffer.memory_buffer, &mut module, &mut err_str)
+            LLVMParseIRInContext(
+                *self.context,
+                memory_buffer.memory_buffer,
+                &mut module,
+                &mut err_str,
+            )
         };
 
         forget(memory_buffer);
@@ -177,9 +184,7 @@ impl Context {
     /// assert_eq!(*void_type.get_context(), context);
     /// ```
     pub fn void_type(&self) -> VoidType {
-        let void_type = unsafe {
-            LLVMVoidTypeInContext(*self.context)
-        };
+        let void_type = unsafe { LLVMVoidTypeInContext(*self.context) };
 
         VoidType::new(void_type)
     }
@@ -198,9 +203,7 @@ impl Context {
     /// assert_eq!(*bool_type.get_context(), context);
     /// ```
     pub fn bool_type(&self) -> IntType {
-        let bool_type = unsafe {
-            LLVMInt1TypeInContext(*self.context)
-        };
+        let bool_type = unsafe { LLVMInt1TypeInContext(*self.context) };
 
         IntType::new(bool_type)
     }
@@ -219,9 +222,7 @@ impl Context {
     /// assert_eq!(*i8_type.get_context(), context);
     /// ```
     pub fn i8_type(&self) -> IntType {
-        let i8_type = unsafe {
-            LLVMInt8TypeInContext(*self.context)
-        };
+        let i8_type = unsafe { LLVMInt8TypeInContext(*self.context) };
 
         IntType::new(i8_type)
     }
@@ -240,9 +241,7 @@ impl Context {
     /// assert_eq!(*i16_type.get_context(), context);
     /// ```
     pub fn i16_type(&self) -> IntType {
-        let i16_type = unsafe {
-            LLVMInt16TypeInContext(*self.context)
-        };
+        let i16_type = unsafe { LLVMInt16TypeInContext(*self.context) };
 
         IntType::new(i16_type)
     }
@@ -261,9 +260,7 @@ impl Context {
     /// assert_eq!(*i32_type.get_context(), context);
     /// ```
     pub fn i32_type(&self) -> IntType {
-        let i32_type = unsafe {
-            LLVMInt32TypeInContext(*self.context)
-        };
+        let i32_type = unsafe { LLVMInt32TypeInContext(*self.context) };
 
         IntType::new(i32_type)
     }
@@ -282,9 +279,7 @@ impl Context {
     /// assert_eq!(*i64_type.get_context(), context);
     /// ```
     pub fn i64_type(&self) -> IntType {
-        let i64_type = unsafe {
-            LLVMInt64TypeInContext(*self.context)
-        };
+        let i64_type = unsafe { LLVMInt64TypeInContext(*self.context) };
 
         IntType::new(i64_type)
     }
@@ -323,9 +318,7 @@ impl Context {
     /// assert_eq!(*i42_type.get_context(), context);
     /// ```
     pub fn custom_width_int_type(&self, bits: u32) -> IntType {
-        let int_type = unsafe {
-            LLVMIntTypeInContext(*self.context, bits)
-        };
+        let int_type = unsafe { LLVMIntTypeInContext(*self.context, bits) };
 
         IntType::new(int_type)
     }
@@ -344,9 +337,7 @@ impl Context {
     /// assert_eq!(*f16_type.get_context(), context);
     /// ```
     pub fn f16_type(&self) -> FloatType {
-        let f16_type = unsafe {
-            LLVMHalfTypeInContext(*self.context)
-        };
+        let f16_type = unsafe { LLVMHalfTypeInContext(*self.context) };
 
         FloatType::new(f16_type)
     }
@@ -365,9 +356,7 @@ impl Context {
     /// assert_eq!(*f32_type.get_context(), context);
     /// ```
     pub fn f32_type(&self) -> FloatType {
-        let f32_type = unsafe {
-            LLVMFloatTypeInContext(*self.context)
-        };
+        let f32_type = unsafe { LLVMFloatTypeInContext(*self.context) };
 
         FloatType::new(f32_type)
     }
@@ -386,9 +375,7 @@ impl Context {
     /// assert_eq!(*f64_type.get_context(), context);
     /// ```
     pub fn f64_type(&self) -> FloatType {
-        let f64_type = unsafe {
-            LLVMDoubleTypeInContext(*self.context)
-        };
+        let f64_type = unsafe { LLVMDoubleTypeInContext(*self.context) };
 
         FloatType::new(f64_type)
     }
@@ -407,9 +394,7 @@ impl Context {
     /// assert_eq!(*x86_f80_type.get_context(), context);
     /// ```
     pub fn x86_f80_type(&self) -> FloatType {
-        let f128_type = unsafe {
-            LLVMX86FP80TypeInContext(*self.context)
-        };
+        let f128_type = unsafe { LLVMX86FP80TypeInContext(*self.context) };
 
         FloatType::new(f128_type)
     }
@@ -428,9 +413,7 @@ impl Context {
     /// assert_eq!(*f128_type.get_context(), context);
     /// ```
     pub fn f128_type(&self) -> FloatType {
-        let f128_type = unsafe {
-            LLVMFP128TypeInContext(*self.context)
-        };
+        let f128_type = unsafe { LLVMFP128TypeInContext(*self.context) };
 
         FloatType::new(f128_type)
     }
@@ -451,9 +434,7 @@ impl Context {
     /// assert_eq!(*f128_type.get_context(), context);
     /// ```
     pub fn ppc_f128_type(&self) -> FloatType {
-        let f128_type = unsafe {
-            LLVMPPCFP128TypeInContext(*self.context)
-        };
+        let f128_type = unsafe { LLVMPPCFP128TypeInContext(*self.context) };
 
         FloatType::new(f128_type)
     }
@@ -474,11 +455,15 @@ impl Context {
     /// ```
     // REVIEW: AnyType but VoidType? FunctionType?
     pub fn struct_type(&self, field_types: &[BasicTypeEnum], packed: bool) -> StructType {
-        let mut field_types: Vec<LLVMTypeRef> = field_types.iter()
-                                                           .map(|val| val.as_type_ref())
-                                                           .collect();
+        let mut field_types: Vec<LLVMTypeRef> =
+            field_types.iter().map(|val| val.as_type_ref()).collect();
         let struct_type = unsafe {
-            LLVMStructTypeInContext(*self.context, field_types.as_mut_ptr(), field_types.len() as u32, packed as i32)
+            LLVMStructTypeInContext(
+                *self.context,
+                field_types.as_mut_ptr(),
+                field_types.len() as u32,
+                packed as i32,
+            )
         };
 
         StructType::new(struct_type)
@@ -501,9 +486,7 @@ impl Context {
     pub fn opaque_struct_type(&self, name: &str) -> StructType {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
-        let struct_type = unsafe {
-            LLVMStructCreateNamed(*self.context, c_string.as_ptr())
-        };
+        let struct_type = unsafe { LLVMStructCreateNamed(*self.context, c_string.as_ptr()) };
 
         StructType::new(struct_type)
     }
@@ -525,11 +508,14 @@ impl Context {
     /// assert_eq!(const_struct.get_type().get_field_types(), &[i16_type.into(), f32_type.into()]);
     /// ```
     pub fn const_struct(&self, values: &[BasicValueEnum], packed: bool) -> StructValue {
-        let mut args: Vec<LLVMValueRef> = values.iter()
-                                                .map(|val| val.as_value_ref())
-                                                .collect();
+        let mut args: Vec<LLVMValueRef> = values.iter().map(|val| val.as_value_ref()).collect();
         let value = unsafe {
-            LLVMConstStructInContext(*self.context, args.as_mut_ptr(), args.len() as u32, packed as i32)
+            LLVMConstStructInContext(
+                *self.context,
+                args.as_mut_ptr(),
+                args.len() as u32,
+                packed as i32,
+            )
         };
 
         StructValue::new(value)
@@ -599,7 +585,7 @@ impl Context {
                 let parent_fn = basic_block.get_parent().unwrap();
 
                 self.append_basic_block(&parent_fn, name)
-            },
+            }
         }
     }
 
@@ -658,11 +644,14 @@ impl Context {
     // REVIEW: Seems to be unassgned to anything
     // REVIEW: Should maybe make this take &[BasicValueEnum]?
     pub fn metadata_node(&self, values: &[BasicValueEnum]) -> MetadataValue {
-        let mut tuple_values: Vec<LLVMValueRef> = values.iter()
-                                                        .map(|val| val.as_value_ref())
-                                                        .collect();
+        let mut tuple_values: Vec<LLVMValueRef> =
+            values.iter().map(|val| val.as_value_ref()).collect();
         let metadata_value = unsafe {
-            LLVMMDNodeInContext(*self.context, tuple_values.as_mut_ptr(), tuple_values.len() as u32)
+            LLVMMDNodeInContext(
+                *self.context,
+                tuple_values.as_mut_ptr(),
+                tuple_values.len() as u32,
+            )
         };
 
         MetadataValue::new(metadata_value)
@@ -688,9 +677,8 @@ impl Context {
     pub fn metadata_string(&self, string: &str) -> MetadataValue {
         let c_string = CString::new(string).expect("Conversion to CString failed unexpectedly");
 
-        let metadata_value = unsafe {
-            LLVMMDStringInContext(*self.context, c_string.as_ptr(), string.len() as u32)
-        };
+        let metadata_value =
+            unsafe { LLVMMDStringInContext(*self.context, c_string.as_ptr(), string.len() as u32) };
 
         MetadataValue::new(metadata_value)
     }
@@ -714,7 +702,11 @@ impl Context {
     /// ```
     pub fn get_kind_id(&self, key: &str) -> u32 {
         unsafe {
-            LLVMGetMDKindIDInContext(*self.context, key.as_ptr() as *const c_char, key.len() as u32)
+            LLVMGetMDKindIDInContext(
+                *self.context,
+                key.as_ptr() as *const c_char,
+                key.len() as u32,
+            )
         }
     }
 
@@ -743,9 +735,7 @@ impl Context {
     /// ```
     #[llvm_versions(4.0..=latest)]
     pub fn create_enum_attribute(&self, kind_id: u32, val: u64) -> Attribute {
-        let attribute = unsafe {
-            LLVMCreateEnumAttribute(*self.context, kind_id, val)
-        };
+        let attribute = unsafe { LLVMCreateEnumAttribute(*self.context, kind_id, val) };
 
         Attribute::new(attribute)
     }
@@ -765,7 +755,13 @@ impl Context {
     #[llvm_versions(4.0..=latest)]
     pub fn create_string_attribute(&self, key: &str, val: &str) -> Attribute {
         let attribute = unsafe {
-            LLVMCreateStringAttribute(*self.context, key.as_ptr() as *const _, key.len() as u32, val.as_ptr() as *const _, val.len() as u32)
+            LLVMCreateStringAttribute(
+                *self.context,
+                key.as_ptr() as *const _,
+                key.len() as u32,
+                val.as_ptr() as *const _,
+                val.len() as u32,
+            )
         };
 
         Attribute::new(attribute)
@@ -786,16 +782,23 @@ impl Context {
     // SubTypes: Should return VectorValue<IntValue<i8>>
     pub fn const_string(&self, string: &str, null_terminated: bool) -> VectorValue {
         let ptr = unsafe {
-            LLVMConstStringInContext(*self.context, string.as_ptr() as *const c_char, string.len() as u32, !null_terminated as i32)
+            LLVMConstStringInContext(
+                *self.context,
+                string.as_ptr() as *const c_char,
+                string.len() as u32,
+                !null_terminated as i32,
+            )
         };
 
         VectorValue::new(ptr)
     }
 
-    pub(crate) fn set_diagnostic_handler(&self, handler: extern "C" fn (LLVMDiagnosticInfoRef, *mut c_void), void_ptr: *mut c_void) {
-        unsafe {
-            LLVMContextSetDiagnosticHandler(*self.context, Some(handler), void_ptr)
-        }
+    pub(crate) fn set_diagnostic_handler(
+        &self,
+        handler: extern "C" fn(LLVMDiagnosticInfoRef, *mut c_void),
+        void_ptr: *mut c_void,
+    ) {
+        unsafe { LLVMContextSetDiagnosticHandler(*self.context, Some(handler), void_ptr) }
     }
 }
 
@@ -835,7 +838,9 @@ impl Deref for ContextRef {
     type Target = Context;
 
     fn deref(&self) -> &Self::Target {
-        self.context.as_ref().expect("ContextRef should never be deref'd after being dropped")
+        self.context
+            .as_ref()
+            .expect("ContextRef should never be deref'd after being dropped")
     }
 }
 
