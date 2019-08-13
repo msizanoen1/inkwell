@@ -11,6 +11,7 @@ use crate::types::{Type, ArrayType, BasicTypeEnum, VectorType, PointerType, Func
 use crate::values::{AsValueRef, ArrayValue, GenericValue, IntValue};
 
 use std::convert::TryFrom;
+use std::os::raw::c_char;
 
 /// How to interpret a string or digits used to construct an integer constant.
 #[derive(Clone, Copy, Debug, EnumAsGetters, EnumIntoGetters, EnumToGetters, Eq, Hash, PartialEq)]
@@ -280,7 +281,7 @@ impl IntType {
             return None
         }
         let value = unsafe {
-            LLVMConstIntOfStringAndSize(self.as_type_ref(), slice.as_ptr() as *const i8, slice.len() as u32, radix as u8)
+            LLVMConstIntOfStringAndSize(self.as_type_ref(), slice.as_ptr() as *const c_char, slice.len() as u32, radix as u8)
         };
         Some(IntValue::new(value))
     }

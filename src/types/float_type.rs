@@ -8,6 +8,7 @@ use crate::support::LLVMString;
 use crate::types::traits::AsTypeRef;
 use crate::types::{Type, PointerType, FunctionType, BasicTypeEnum, ArrayType, VectorType};
 use crate::values::{AsValueRef, ArrayValue, FloatValue, GenericValue, IntValue};
+use std::os::raw::c_char;
 
 /// A `FloatType` is the type of a floating point constant or variable.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -132,7 +133,7 @@ impl FloatType {
     /// ```
     pub fn const_float_from_string(&self, slice: &str) -> FloatValue {
         let value = unsafe {
-            LLVMConstRealOfStringAndSize(self.as_type_ref(), slice.as_ptr() as *const i8, slice.len() as u32)
+            LLVMConstRealOfStringAndSize(self.as_type_ref(), slice.as_ptr() as *const c_char, slice.len() as u32)
         };
 
         FloatValue::new(value)

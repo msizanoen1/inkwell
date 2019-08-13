@@ -7,6 +7,7 @@ use llvm_sys::core::{LLVMGetEnumAttributeKindForName, LLVMGetLastEnumAttributeKi
 
 #[llvm_versions(3.9..=latest)]
 use std::ffi::CStr;
+use std::os::raw::c_char;
 
 // SubTypes: Attribute<Enum>, Attribute<String>
 /// Functions, function parameters, and return types can have `Attribute`s to indicate
@@ -83,7 +84,7 @@ impl Attribute {
     /// ```
     pub fn get_named_enum_kind_id(name: &str) -> u32 {
         unsafe {
-            LLVMGetEnumAttributeKindForName(name.as_ptr() as *const i8, name.len())
+            LLVMGetEnumAttributeKindForName(name.as_ptr() as *const c_char, name.len())
         }
     }
 

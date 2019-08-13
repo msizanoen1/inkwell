@@ -10,6 +10,7 @@ use std::mem::{forget, zeroed};
 use std::path::Path;
 use std::ptr;
 use std::slice;
+use std::os::raw::c_char;
 
 #[derive(Debug)]
 pub struct MemoryBuffer {
@@ -32,7 +33,7 @@ impl MemoryBuffer {
 
         let return_code = unsafe {
             // REVIEW: Unclear why this expects *const i8 instead of *const u8
-            LLVMCreateMemoryBufferWithContentsOfFile(path.as_ptr() as *const i8, &mut memory_buffer, &mut err_string)
+            LLVMCreateMemoryBufferWithContentsOfFile(path.as_ptr() as *const c_char, &mut memory_buffer, &mut err_string)
         };
 
         // TODO: Verify 1 is error code (LLVM can be inconsistent)

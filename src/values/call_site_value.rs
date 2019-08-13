@@ -10,6 +10,7 @@ use crate::support::LLVMString;
 use crate::values::{AsValueRef, BasicValueEnum, InstructionValue, Value};
 #[llvm_versions(3.9..=latest)]
 use crate::values::FunctionValue;
+use std::os::raw::c_char;
 
 /// A value resulting from a function call. It may have function attributes applied to it.
 ///
@@ -288,7 +289,7 @@ impl CallSiteValue {
         use llvm_sys::core::LLVMGetCallSiteStringAttribute;
 
         let ptr = unsafe {
-            LLVMGetCallSiteStringAttribute(self.as_value_ref(), loc.get_index(), key.as_ptr() as *const i8, key.len() as u32)
+            LLVMGetCallSiteStringAttribute(self.as_value_ref(), loc.get_index(), key.as_ptr() as *const c_char, key.len() as u32)
         };
 
         if ptr.is_null() {
@@ -368,7 +369,7 @@ impl CallSiteValue {
         use llvm_sys::core::LLVMRemoveCallSiteStringAttribute;
 
         unsafe {
-            LLVMRemoveCallSiteStringAttribute(self.as_value_ref(), loc.get_index(), key.as_ptr() as *const i8, key.len() as u32)
+            LLVMRemoveCallSiteStringAttribute(self.as_value_ref(), loc.get_index(), key.as_ptr() as *const c_char, key.len() as u32)
         }
     }
 

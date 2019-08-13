@@ -20,6 +20,7 @@ use std::ffi::{CStr, CString};
 use std::mem::zeroed;
 use std::path::Path;
 use std::ptr;
+use std::os::raw::c_char;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum CodeModel {
@@ -789,7 +790,7 @@ impl Target {
         Self::from_name_raw(c_string.as_ptr())
     }
 
-    pub(crate) fn from_name_raw(c_string: *const i8) -> Option<Self> {
+    pub(crate) fn from_name_raw(c_string: *const c_char) -> Option<Self> {
         let target = unsafe {
             LLVMGetTargetFromName(c_string)
         };

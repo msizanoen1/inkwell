@@ -22,6 +22,7 @@ use std::mem::forget;
 use std::ops::Deref;
 use std::ptr;
 use std::rc::Rc;
+use std::os::raw::c_char;
 
 /// A `Context` is a container for all LLVM entities including `Module`s.
 ///
@@ -713,7 +714,7 @@ impl Context {
     /// ```
     pub fn get_kind_id(&self, key: &str) -> u32 {
         unsafe {
-            LLVMGetMDKindIDInContext(*self.context, key.as_ptr() as *const i8, key.len() as u32)
+            LLVMGetMDKindIDInContext(*self.context, key.as_ptr() as *const c_char, key.len() as u32)
         }
     }
 
@@ -785,7 +786,7 @@ impl Context {
     // SubTypes: Should return VectorValue<IntValue<i8>>
     pub fn const_string(&self, string: &str, null_terminated: bool) -> VectorValue {
         let ptr = unsafe {
-            LLVMConstStringInContext(*self.context, string.as_ptr() as *const i8, string.len() as u32, !null_terminated as i32)
+            LLVMConstStringInContext(*self.context, string.as_ptr() as *const c_char, string.len() as u32, !null_terminated as i32)
         };
 
         VectorValue::new(ptr)

@@ -1,5 +1,6 @@
 use std::ffi::CStr;
 use std::fmt;
+use std::os::raw::c_char;
 
 use crate::support::{LLVMString, LLVMStringOrRaw};
 
@@ -9,7 +10,7 @@ pub struct DataLayout {
 }
 
 impl DataLayout {
-    pub(crate) fn new_owned(data_layout: *const i8) -> DataLayout {
+    pub(crate) fn new_owned(data_layout: *const c_char) -> DataLayout {
         debug_assert!(!data_layout.is_null());
 
         DataLayout {
@@ -17,7 +18,7 @@ impl DataLayout {
         }
     }
 
-    pub(crate) fn new_borrowed(data_layout: *const i8) -> DataLayout {
+    pub(crate) fn new_borrowed(data_layout: *const c_char) -> DataLayout {
         debug_assert!(!data_layout.is_null());
 
         DataLayout {
@@ -29,7 +30,7 @@ impl DataLayout {
         self.data_layout.as_str()
     }
 
-    pub fn as_ptr(&self) -> *const i8 {
+    pub fn as_ptr(&self) -> *const c_char {
         match self.data_layout {
             LLVMStringOrRaw::Owned(ref llvm_string) => llvm_string.ptr,
             LLVMStringOrRaw::Borrowed(ptr) => ptr,

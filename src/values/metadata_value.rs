@@ -14,6 +14,7 @@ use std::ffi::{CString, CStr};
 use std::fmt;
 use std::mem::forget;
 use std::slice::from_raw_parts;
+use std::os::raw::c_char;
 
 // TODOC: Varies by version
 #[cfg(feature = "llvm3-6")]
@@ -145,7 +146,7 @@ impl MetadataValue {
     pub fn get_kind_id(key: &str) -> u32 {
         unsafe {
             // REVIEW: Why does str give us *u8 but LLVM wants *i8?
-            LLVMGetMDKindID(key.as_ptr() as *const i8, key.len() as u32)
+            LLVMGetMDKindID(key.as_ptr() as *const c_char, key.len() as u32)
         }
     }
 

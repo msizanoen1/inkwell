@@ -44,6 +44,7 @@ use llvm_sys::prelude::{LLVMValueRef, LLVMTypeRef};
 
 use std::ffi::CStr;
 use std::fmt;
+use std::os::raw::c_char;
 
 use crate::support::LLVMString;
 
@@ -112,7 +113,7 @@ impl Value {
             use llvm_sys::core::LLVMSetValueName2;
 
             unsafe {
-                LLVMSetValueName2(self.value, name.as_ptr() as *const i8, name.len())
+                LLVMSetValueName2(self.value, name.as_ptr() as *const c_char, name.len())
             }
         }
     }

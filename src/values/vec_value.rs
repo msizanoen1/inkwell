@@ -7,6 +7,7 @@ use crate::support::LLVMString;
 use crate::types::{VectorType};
 use crate::values::traits::AsValueRef;
 use crate::values::{BasicValueEnum, BasicValue, InstructionValue, Value, IntValue, MetadataValue};
+use std::os::raw::c_char;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct VectorValue {
@@ -131,7 +132,7 @@ impl VectorValue {
     // SubTypes: Should return VectorValue<IntValue<i8>>
     pub fn const_string(string: &str, null_terminated: bool) -> Self {
         let ptr = unsafe {
-            LLVMConstString(string.as_ptr() as *const i8, string.len() as u32, !null_terminated as i32)
+            LLVMConstString(string.as_ptr() as *const c_char, string.len() as u32, !null_terminated as i32)
         };
 
         VectorValue::new(ptr)
