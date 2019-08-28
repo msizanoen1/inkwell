@@ -47,7 +47,7 @@ pub trait BasicType: AnyType {
     /// Create a `FunctionType` with this `BasicType` as its return type.
     ///
     /// Example:
-    /// ```
+    /// ```no_run
     /// use inkwell::context::Context;
     /// use inkwell::types::BasicType;
     ///
@@ -63,7 +63,7 @@ pub trait BasicType: AnyType {
     /// Create an `ArrayType` with this `BasicType` as its elements.
     ///
     /// Example:
-    /// ```
+    /// ```no_run
     /// use inkwell::context::Context;
     /// use inkwell::types::BasicType;
     ///
@@ -72,6 +72,7 @@ pub trait BasicType: AnyType {
     /// let int_basic_type = int.as_basic_type_enum();
     /// assert_eq!(int_basic_type.array_type(32), int.array_type(32));
     /// ```
+    // FIXME: We shouldn't be able to create arrays of void types
     fn array_type(&self, size: u32) -> ArrayType {
         Type::new(self.as_type_ref()).array_type(size)
     }
@@ -79,7 +80,7 @@ pub trait BasicType: AnyType {
     /// Create a `PointerType` that points to this `BasicType`.
     ///
     /// Example:
-    /// ```
+    /// ```no_run
     /// use inkwell::context::Context;
     /// use inkwell::types::BasicType;
     /// use inkwell::AddressSpace;
@@ -90,6 +91,7 @@ pub trait BasicType: AnyType {
     /// let addr_space = AddressSpace::Generic;
     /// assert_eq!(int_basic_type.ptr_type(addr_space), int.ptr_type(addr_space));
     /// ```
+    // FIXME: We shouldn't be able to create pointer of void types
     fn ptr_type(&self, address_space: AddressSpace) -> PointerType {
         Type::new(self.as_type_ref()).ptr_type(address_space)
     }

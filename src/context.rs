@@ -63,7 +63,7 @@ impl Context {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use inkwell::context::Context;
     ///
     /// let context = Context::create();
@@ -78,7 +78,7 @@ impl Context {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use inkwell::context::Context;
     ///
     /// let context = Context::get_global();
@@ -93,7 +93,7 @@ impl Context {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use inkwell::context::Context;
     ///
     /// let context = Context::create();
@@ -109,7 +109,7 @@ impl Context {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use inkwell::context::Context;
     ///
     /// let context = Context::create();
