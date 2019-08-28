@@ -939,13 +939,13 @@ impl Target {
     pub fn from_name(name: &str) -> Option<Self> {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
-        Self::from_name_raw(c_string.as_ptr())
+        Self::from_name_raw(c_string.as_ptr() as *const i8)
     }
 
     pub(crate) fn from_name_raw(c_string: *const i8) -> Option<Self> {
         let target = {
             let _guard = TARGET_LOCK.read().unwrap();
-            unsafe { LLVMGetTargetFromName(c_string) }
+            unsafe { LLVMGetTargetFromName(c_string as *const libc::c_char) }
         };
 
         if target.is_null() {

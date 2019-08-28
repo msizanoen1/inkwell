@@ -399,7 +399,7 @@ impl Module {
         // REVIEW: This isn't an owned LLVMString, is it? If so, need to deallocate.
         let target_str = unsafe { LLVMGetTarget(self.module.get()) };
 
-        Target::from_name_raw(target_str)
+        Target::from_name_raw(target_str as *const i8)
     }
 
     /// Creates an `ExecutionEngine` from this `Module`.
