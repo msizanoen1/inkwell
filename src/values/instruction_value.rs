@@ -4,13 +4,6 @@ use llvm_sys::core::{LLVMGetAlignment, LLVMSetAlignment, LLVMGetInstructionOpcod
 use llvm_sys::core::{LLVMGetOrdering, LLVMSetOrdering};
 #[llvm_versions(3.9..=latest)]
 use llvm_sys::core::LLVMInstructionRemoveFromParent;
-use llvm_sys::core::{
-    LLVMGetFCmpPredicate, LLVMGetICmpPredicate, LLVMGetInstructionOpcode, LLVMGetInstructionParent,
-    LLVMGetNextInstruction, LLVMGetNumOperands, LLVMGetOperand, LLVMGetOperandUse,
-    LLVMGetPreviousInstruction, LLVMGetVolatile, LLVMInstructionClone,
-    LLVMInstructionEraseFromParent, LLVMIsABasicBlock, LLVMIsTailCall, LLVMSetOperand,
-    LLVMSetVolatile, LLVMValueAsBasicBlock,
-};
 use llvm_sys::prelude::LLVMValueRef;
 use llvm_sys::LLVMOpcode;
 
