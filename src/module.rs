@@ -795,7 +795,7 @@ impl Module {
         let path = CString::new(path_str).expect("Could not convert path to CString");
         let mut err_string = MaybeUninit::uninit();
         let return_code = unsafe {
-            LLVMPrintModuleToFile(self.module.get(), path.as_ptr() as *const i8, err_string.as_mut_ptr())
+            LLVMPrintModuleToFile(self.module.get(), path.as_ptr() as *const c_char, err_string.as_mut_ptr())
         };
 
         if return_code == 1 {
