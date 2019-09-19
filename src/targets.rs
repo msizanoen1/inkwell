@@ -35,6 +35,7 @@ use std::default::Default;
 use std::ffi::{CStr, CString};
 use std::mem::zeroed;
 use std::os::raw::c_char;
+use std::mem::MaybeUninit;
 use std::path::Path;
 use std::ptr;
 use std::sync::RwLock;
@@ -958,16 +959,15 @@ impl Target {
     pub fn from_triple(triple: &str) -> Result<Self, LLVMString> {
         let c_string = CString::new(triple).expect("Conversion to CString failed unexpectedly");
         let mut target = ptr::null_mut();
-        let mut err_string = unsafe { zeroed() };
+        let mut err_string = MaybeUninit::uninit();
 
-        let code =
-        {
+        let code = {
             let _guard = TARGET_LOCK.read().unwrap();
-            unsafe { LLVMGetTargetFromTriple(c_string.as_ptr(), &mut target, &mut err_string) }
+            unsafe { LLVMGetTargetFromTriple(c_string.as_ptr(), &mut target, err_string.as_mut_ptr()) }
         };
 
         if code == 1 {
-            // REVIEW: 1 is error value
+            let err_string = unsafe { err_string.assume_init() };
             return Err(LLVMString::new(err_string));
         }
 
@@ -1136,7 +1136,7 @@ impl TargetMachine {
         file_type: FileType,
     ) -> Result<MemoryBuffer, LLVMString> {
         let mut memory_buffer = ptr::null_mut();
-        let mut err_string = unsafe { zeroed() };
+        let mut err_string = MaybeUninit::uninit();
         let return_code = unsafe {
             let module_ptr = module.module.get();
             let file_type_ptr = file_type.as_llvm_file_type();
@@ -1145,12 +1145,13 @@ impl TargetMachine {
                 self.target_machine,
                 module_ptr,
                 file_type_ptr,
-                &mut err_string,
+                err_string.as_mut_ptr(),
                 &mut memory_buffer,
             )
         };
 
         if return_code == 1 {
+            let err_string = unsafe { err_string.assume_init() };
             return Err(LLVMString::new(err_string));
         }
 
@@ -1196,7 +1197,7 @@ impl TargetMachine {
             .to_str()
             .expect("Did not find a valid Unicode path string");
         let path_c_string = CString::new(path).expect("Conversion to CString failed unexpectedly");
-        let mut err_string = unsafe { zeroed() };
+        let mut err_string = MaybeUninit::uninit();
         let return_code = unsafe {
             // REVIEW: Why does LLVM need a mutable ptr to path...?
             let module_ptr = module.module.get();
@@ -1208,11 +1209,12 @@ impl TargetMachine {
                 module_ptr,
                 path_ptr,
                 file_type_ptr,
-                &mut err_string,
+                err_string.as_mut_ptr(),
             )
         };
 
         if return_code == 1 {
+            let err_string = unsafe { err_string.assume_init() };
             return Err(LLVMString::new(err_string));
         }
 

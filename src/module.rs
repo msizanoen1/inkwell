@@ -30,8 +30,8 @@ use std::cell::{Cell, Ref, RefCell};
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::fs::File;
-use std::mem::{forget, zeroed};
 use std::os::raw::c_char;
+use std::mem::{forget, MaybeUninit};
 use std::path::Path;
 use std::ptr;
 use std::rc::Rc;
@@ -431,21 +431,20 @@ impl Module {
             return Err(LLVMString::create(string));
         }
 
-        let mut execution_engine = unsafe { zeroed() };
-        let mut err_string = unsafe { zeroed() };
+        let mut execution_engine = MaybeUninit::uninit();
+        let mut err_string = MaybeUninit::uninit();
         let code = unsafe {
-            LLVMCreateExecutionEngineForModule(
-                &mut execution_engine,
-                self.module.get(),
-                &mut err_string,
-            ) // Takes ownership of module
+            // Takes ownership of module
+            LLVMCreateExecutionEngineForModule(execution_engine.as_mut_ptr(), self.module.get(), err_string.as_mut_ptr())
         };
 
         if code == 1 {
+            let err_string = unsafe { err_string.assume_init() };
             return Err(LLVMString::new(err_string));
         }
 
         let context = self.non_global_context.clone();
+        let execution_engine = unsafe { execution_engine.assume_init() };
         let execution_engine = ExecutionEngine::new(Rc::new(execution_engine), context, false);
 
         *self.owned_by_ee.borrow_mut() = Some(execution_engine.clone());
@@ -482,22 +481,21 @@ impl Module {
             return Err(LLVMString::create(string));
         }
 
-        let mut execution_engine = unsafe { zeroed() };
-        let mut err_string = unsafe { zeroed() };
+        let mut execution_engine = MaybeUninit::uninit();
+        let mut err_string = MaybeUninit::uninit();
 
         let code = unsafe {
-            LLVMCreateInterpreterForModule(
-                &mut execution_engine,
-                self.module.get(),
-                &mut err_string,
-            ) // Takes ownership of module
+            // Takes ownership of module
+            LLVMCreateInterpreterForModule(execution_engine.as_mut_ptr(), self.module.get(), err_string.as_mut_ptr())
         };
 
         if code == 1 {
+            let err_string = unsafe { err_string.assume_init() };
             return Err(LLVMString::new(err_string));
         }
 
         let context = self.non_global_context.clone();
+        let execution_engine = unsafe { execution_engine.assume_init() };
         let execution_engine = ExecutionEngine::new(Rc::new(execution_engine), context, false);
 
         *self.owned_by_ee.borrow_mut() = Some(execution_engine.clone());
@@ -538,23 +536,21 @@ impl Module {
             return Err(LLVMString::create(string));
         }
 
-        let mut execution_engine = unsafe { zeroed() };
-        let mut err_string = unsafe { zeroed() };
+        let mut execution_engine = MaybeUninit::uninit();
+        let mut err_string = MaybeUninit::uninit();
 
         let code = unsafe {
-            LLVMCreateJITCompilerForModule(
-                &mut execution_engine,
-                self.module.get(),
-                opt_level as u32,
-                &mut err_string,
-            ) // Takes ownership of module
+            // Takes ownership of module
+            LLVMCreateJITCompilerForModule(execution_engine.as_mut_ptr(), self.module.get(), opt_level as u32, err_string.as_mut_ptr())
         };
 
         if code == 1 {
+            let err_string = unsafe { err_string.assume_init() };
             return Err(LLVMString::new(err_string));
         }
 
         let context = self.non_global_context.clone();
+        let execution_engine = unsafe { execution_engine.assume_init() };
         let execution_engine = ExecutionEngine::new(Rc::new(execution_engine), context, true);
 
         *self.owned_by_ee.borrow_mut() = Some(execution_engine.clone());
@@ -684,12 +680,15 @@ impl Module {
     /// # Remarks
     /// See also: http://llvm.org/doxygen/Analysis_2Analysis_8cpp_source.html
     pub fn verify(&self) -> Result<(), LLVMString> {
-        let mut err_str = unsafe { zeroed() };
+        let mut err_str = MaybeUninit::uninit();
 
         let action = LLVMVerifierFailureAction::LLVMReturnStatusAction;
 
-        let code = unsafe { LLVMVerifyModule(self.module.get(), action, &mut err_str) };
+        let code = unsafe {
+            LLVMVerifyModule(self.module.get(), action, err_str.as_mut_ptr())
+        };
 
+        let err_str = unsafe { err_str.assume_init() };
         if code == 1 && !err_str.is_null() {
             return Err(LLVMString::new(err_str));
         }
@@ -794,16 +793,13 @@ impl Module {
             .to_str()
             .expect("Did not find a valid Unicode path string");
         let path = CString::new(path_str).expect("Could not convert path to CString");
-        let mut err_string = unsafe { zeroed() };
+        let mut err_string = MaybeUninit::uninit();
         let return_code = unsafe {
-            LLVMPrintModuleToFile(
-                self.module.get(),
-                path.as_ptr() as *const c_char,
-                &mut err_string,
-            )
+            LLVMPrintModuleToFile(self.module.get(), path.as_ptr() as *const i8, err_string.as_mut_ptr())
         };
 
         if return_code == 1 {
+            let err_string = unsafe { err_string.assume_init() };
             return Err(LLVMString::new(err_string));
         }
 
@@ -1102,19 +1098,23 @@ impl Module {
     ///
     /// ```
     pub fn parse_bitcode_from_buffer(buffer: &MemoryBuffer) -> Result<Self, LLVMString> {
-        let mut module = unsafe { zeroed() };
-        let mut err_string = unsafe { zeroed() };
+        let mut module = MaybeUninit::uninit();
+        let mut err_string = MaybeUninit::uninit();
 
         // LLVM has a newer version of this function w/o the error result since 3.8 but this deprecated function
         // hasen't yet been removed even in the unreleased LLVM 7. Seems fine to use instead of switching to their
         // error diagnostics handler
         #[allow(deprecated)]
-        let success =
-            unsafe { LLVMParseBitcode(buffer.memory_buffer, &mut module, &mut err_string) };
+        let success = unsafe {
+            LLVMParseBitcode(buffer.memory_buffer, module.as_mut_ptr(), err_string.as_mut_ptr())
+        };
 
         if success != 0 {
+            let err_string = unsafe { err_string.assume_init() };
             return Err(LLVMString::new(err_string));
         }
+
+        let module = unsafe { module.assume_init() };
 
         Ok(Module::new(module, None))
     }
@@ -1137,29 +1137,24 @@ impl Module {
     /// assert_eq!(module.unwrap().get_context(), Context::get_global());
     ///
     /// ```
-    pub fn parse_bitcode_from_buffer_in_context(
-        buffer: &MemoryBuffer,
-        context: &Context,
-    ) -> Result<Self, LLVMString> {
-        let mut module = unsafe { zeroed() };
-        let mut err_string = unsafe { zeroed() };
+    pub fn parse_bitcode_from_buffer_in_context(buffer: &MemoryBuffer, context: &Context) -> Result<Self, LLVMString> {
+        let mut module = MaybeUninit::uninit();
+        let mut err_string = MaybeUninit::uninit();
 
         // LLVM has a newer version of this function w/o the error result since 3.8 but this deprecated function
         // hasen't yet been removed even in the unreleased LLVM 7. Seems fine to use instead of switching to their
         // error diagnostics handler
         #[allow(deprecated)]
         let success = unsafe {
-            LLVMParseBitcodeInContext(
-                *context.context,
-                buffer.memory_buffer,
-                &mut module,
-                &mut err_string,
-            )
+            LLVMParseBitcodeInContext(*context.context, buffer.memory_buffer, module.as_mut_ptr(), err_string.as_mut_ptr())
         };
 
         if success != 0 {
+            let err_string = unsafe { err_string.assume_init() };
             return Err(LLVMString::new(err_string));
         }
+
+        let module = unsafe { module.assume_init() };
 
         Ok(Module::new(module, Some(&context)))
     }
@@ -1334,13 +1329,17 @@ impl Module {
     /// assert!(module.link_in_module(module2).is_ok());
     /// ```
     pub fn link_in_module(&self, other: Self) -> Result<(), LLVMString> {
-        // REVIEW: Check if owned by EE? test_linking_modules seems OK as is...
+        if other.owned_by_ee.borrow().is_some() {
+            let string = "Cannot link a module which is already owned by an ExecutionEngine.\0";
+            return Err(LLVMString::create(string));
+        }
 
         #[cfg(any(feature = "llvm3-6", feature = "llvm3-7"))]
         {
             use llvm_sys::linker::{LLVMLinkModules, LLVMLinkerMode};
 
             let mut err_string = ptr::null_mut();
+            // As of 3.7, LLVMLinkerDestroySource is the only option
             let mode = LLVMLinkerMode::LLVMLinkerDestroySource;
             let code = unsafe {
                 LLVMLinkModules(self.module.get(), other.module.get(), mode, &mut err_string)

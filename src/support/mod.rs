@@ -141,6 +141,7 @@ pub fn enable_llvm_pretty_stack_trace() {
     unsafe { LLVMEnablePrettyStackTrace() }
 }
 
+// DEPRECATED: Use llvm_enum attr instead
 macro_rules! enum_rename {
     ($(#[$enum_attrs:meta])* $enum_name:ident <=> $llvm_enum_name:ident {
         $($(#[$variant_attrs:meta])* $args:ident <=> $llvm_args:ident,)+

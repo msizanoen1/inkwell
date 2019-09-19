@@ -9,7 +9,9 @@ use llvm_sys::LLVMTypeKind;
 
 use crate::{AtomicOrdering, AtomicRMWBinOp, IntPredicate, FloatPredicate};
 use crate::basic_block::BasicBlock;
-use crate::values::{AggregateValue, AggregateValueEnum, AsValueRef, BasicValue, BasicValueEnum, PhiValue, FunctionValue, IntValue, PointerValue, StructValue, VectorValue, InstructionValue, GlobalValue, IntMathValue, FloatMathValue, PointerMathValue, InstructionOpcode, CallSiteValue};
+use crate::values::{AggregateValue, AggregateValueEnum, AsValueRef, BasicValue, BasicValueEnum, PhiValue, FunctionValue, IntValue, PointerValue, VectorValue, InstructionValue, GlobalValue, IntMathValue, FloatMathValue, PointerMathValue, InstructionOpcode, CallSiteValue};
+#[llvm_versions(3.9..=latest)]
+use crate::values::StructValue;
 use crate::types::{AsTypeRef, BasicType, IntMathType, FloatMathType, PointerType, PointerMathType};
 
 use std::ffi::CString;
@@ -1384,13 +1386,7 @@ impl Builder {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
         let value = unsafe {
-            LLVMBuildICmp(
-                self.builder,
-                op.as_llvm_enum(),
-                lhs.as_value_ref(),
-                rhs.as_value_ref(),
-                c_string.as_ptr(),
-            )
+            LLVMBuildICmp(self.builder, op.into(), lhs.as_value_ref(), rhs.as_value_ref(), c_string.as_ptr())
         };
 
         T::new(value)
@@ -1408,13 +1404,7 @@ impl Builder {
         let c_string = CString::new(name).expect("Conversion to CString failed unexpectedly");
 
         let value = unsafe {
-            LLVMBuildFCmp(
-                self.builder,
-                op.as_llvm_enum(),
-                lhs.as_value_ref(),
-                rhs.as_value_ref(),
-                c_string.as_ptr(),
-            )
+            LLVMBuildFCmp(self.builder, op.into(), lhs.as_value_ref(), rhs.as_value_ref(), c_string.as_ptr())
         };
 
         <<T::BaseType as FloatMathType>::MathConvType as IntMathType>::ValueType::new(value)

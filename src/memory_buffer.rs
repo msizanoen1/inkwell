@@ -10,8 +10,8 @@ use crate::object_file::ObjectFile;
 use crate::support::LLVMString;
 
 use std::ffi::CString;
-use std::mem::{forget, zeroed};
 use std::os::raw::c_char;
+use std::mem::{forget, MaybeUninit};
 use std::path::Path;
 use std::ptr;
 use std::slice;
@@ -35,20 +35,17 @@ impl MemoryBuffer {
         )
         .expect("Failed to convert to CString");
         let mut memory_buffer = ptr::null_mut();
-        let mut err_string = unsafe { zeroed() };
+        let mut err_string = MaybeUninit::uninit();
 
         let return_code = unsafe {
             // REVIEW: Unclear why this expects *const i8 instead of *const u8
-            LLVMCreateMemoryBufferWithContentsOfFile(
-                path.as_ptr() as *const c_char,
-                &mut memory_buffer,
-                &mut err_string,
-            )
+            LLVMCreateMemoryBufferWithContentsOfFile(path.as_ptr() as *const c_char, &mut memory_buffer, err_string.as_mut_ptr())
         };
 
         // TODO: Verify 1 is error code (LLVM can be inconsistent)
         if return_code == 1 {
-            return Err(LLVMString::new(err_string));
+            let err_str = unsafe { err_string.assume_init() };
+            return Err(LLVMString::new(err_str));
         }
 
         Ok(MemoryBuffer::new(memory_buffer))
@@ -56,14 +53,16 @@ impl MemoryBuffer {
 
     pub fn create_from_stdin() -> Result<Self, LLVMString> {
         let mut memory_buffer = ptr::null_mut();
-        let mut err_string = unsafe { zeroed() };
+        let mut err_string = MaybeUninit::uninit();
 
-        let return_code =
-            unsafe { LLVMCreateMemoryBufferWithSTDIN(&mut memory_buffer, &mut err_string) };
+        let return_code = unsafe {
+            LLVMCreateMemoryBufferWithSTDIN(&mut memory_buffer, err_string.as_mut_ptr())
+        };
 
         // TODO: Verify 1 is error code (LLVM can be inconsistent)
         if return_code == 1 {
-            return Err(LLVMString::new(err_string));
+            let err_str = unsafe { err_string.assume_init() };
+            return Err(LLVMString::new(err_str));
         }
 
         Ok(MemoryBuffer::new(memory_buffer))
